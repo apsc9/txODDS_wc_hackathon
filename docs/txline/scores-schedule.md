@@ -1,0 +1,213 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://txline-docs.txodds.com/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Schedule
+
+> Confirmed fixtures currently listed for TxLINE match data coverage
+
+## World Cup - Group Stage
+
+### June 14, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team   | Away Team |
+| --------- | ------ | ------------- | ----------------------- | ---------- | ----------- | --------- |
+| 17588316  | Soccer | International | World Cup > Group Stage | 01:00      | Haiti       | Scotland  |
+| 17926689  | Soccer | International | World Cup > Group Stage | 04:00      | Australia   | Turkey    |
+| 17588318  | Soccer | International | World Cup > Group Stage | 17:00      | Germany     | Curacao   |
+| 17588305  | Soccer | International | World Cup > Group Stage | 20:00      | Netherlands | Japan     |
+| 17588239  | Soccer | International | World Cup > Group Stage | 23:00      | Ivory Coast | Ecuador   |
+
+### June 15, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team    | Away Team  |
+| --------- | ------ | ------------- | ----------------------- | ---------- | ------------ | ---------- |
+| 17926553  | Soccer | International | World Cup > Group Stage | 02:00      | Sweden       | Tunisia    |
+| 17588403  | Soccer | International | World Cup > Group Stage | 16:00      | Spain        | Cape Verde |
+| 17588230  | Soccer | International | World Cup > Group Stage | 19:00      | Belgium      | Egypt      |
+| 17588311  | Soccer | International | World Cup > Group Stage | 22:00      | Saudi Arabia | Uruguay    |
+
+### June 16, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team | Away Team   |
+| --------- | ------ | ------------- | ----------------------- | ---------- | --------- | ----------- |
+| 17588241  | Soccer | International | World Cup > Group Stage | 01:00      | Iran      | New Zealand |
+| 17588306  | Soccer | International | World Cup > Group Stage | 19:00      | France    | Senegal     |
+| 17926828  | Soccer | International | World Cup > Group Stage | 22:00      | Iraq      | Norway      |
+
+### June 17, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team | Away Team |
+| --------- | ------ | ------------- | ----------------------- | ---------- | --------- | --------- |
+| 17588322  | Soccer | International | World Cup > Group Stage | 01:00      | Argentina | Algeria   |
+| 17588405  | Soccer | International | World Cup > Group Stage | 04:00      | Austria   | Jordan    |
+| 17926703  | Soccer | International | World Cup > Group Stage | 17:00      | Portugal  | Congo DR  |
+| 17588228  | Soccer | International | World Cup > Group Stage | 20:00      | England   | Croatia   |
+| 17588406  | Soccer | International | World Cup > Group Stage | 23:00      | Ghana     | Panama    |
+
+### June 18, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team      | Away Team            |
+| --------- | ------ | ------------- | ----------------------- | ---------- | -------------- | -------------------- |
+| 17588399  | Soccer | International | World Cup > Group Stage | 02:00      | Uzbekistan     | Colombia             |
+| 17926765  | Soccer | International | World Cup > Group Stage | 16:00      | Czech Republic | South Africa         |
+| 17926603  | Soccer | International | World Cup > Group Stage | 19:00      | Switzerland    | Bosnia & Herzegovina |
+| 17588238  | Soccer | International | World Cup > Group Stage | 22:00      | Canada         | Qatar                |
+
+### June 19, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team | Away Team   |
+| --------- | ------ | ------------- | ----------------------- | ---------- | --------- | ----------- |
+| 17588223  | Soccer | International | World Cup > Group Stage | 01:00      | Mexico    | South Korea |
+| 17588388  | Soccer | International | World Cup > Group Stage | 19:00      | USA       | Australia   |
+| 17588397  | Soccer | International | World Cup > Group Stage | 22:00      | Scotland  | Morocco     |
+
+### June 20, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team   | Away Team   |
+| --------- | ------ | ------------- | ----------------------- | ---------- | ----------- | ----------- |
+| 17588317  | Soccer | International | World Cup > Group Stage | 00:30      | Brazil      | Haiti       |
+| 17588229  | Soccer | International | World Cup > Group Stage | 03:00      | Turkey      | Paraguay    |
+| 17926687  | Soccer | International | World Cup > Group Stage | 17:00      | Netherlands | Sweden      |
+| 17588240  | Soccer | International | World Cup > Group Stage | 20:00      | Germany     | Ivory Coast |
+| 17588320  | Soccer | International | World Cup > Group Stage | 23:00      | Ecuador     | Curacao     |
+
+### June 21, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team | Away Team    |
+| --------- | ------ | ------------- | ----------------------- | ---------- | --------- | ------------ |
+| 17588310  | Soccer | International | World Cup > Group Stage | 04:00      | Tunisia   | Japan        |
+| 17588232  | Soccer | International | World Cup > Group Stage | 16:00      | Spain     | Saudi Arabia |
+| 17588390  | Soccer | International | World Cup > Group Stage | 19:00      | Belgium   | Iran         |
+| 17588235  | Soccer | International | World Cup > Group Stage | 22:00      | Uruguay   | Cape Verde   |
+
+### June 22, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team   | Away Team |
+| --------- | ------ | ------------- | ----------------------- | ---------- | ----------- | --------- |
+| 17588242  | Soccer | International | World Cup > Group Stage | 01:00      | New Zealand | Egypt     |
+| 17588389  | Soccer | International | World Cup > Group Stage | 17:00      | Argentina   | Austria   |
+| 17926647  | Soccer | International | World Cup > Group Stage | 21:00      | France      | Iraq      |
+
+### June 23, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team | Away Team  |
+| --------- | ------ | ------------- | ----------------------- | ---------- | --------- | ---------- |
+| 17588313  | Soccer | International | World Cup > Group Stage | 00:00      | Norway    | Senegal    |
+| 17588244  | Soccer | International | World Cup > Group Stage | 03:00      | Jordan    | Algeria    |
+| 17588231  | Soccer | International | World Cup > Group Stage | 17:00      | Portugal  | Uzbekistan |
+| 17588324  | Soccer | International | World Cup > Group Stage | 20:00      | England   | Ghana      |
+| 17588401  | Soccer | International | World Cup > Group Stage | 23:00      | Panama    | Croatia    |
+
+### June 24, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team            | Away Team |
+| --------- | ------ | ------------- | ----------------------- | ---------- | -------------------- | --------- |
+| 17926615  | Soccer | International | World Cup > Group Stage | 02:00      | Colombia             | Congo DR  |
+| 17588303  | Soccer | International | World Cup > Group Stage | 19:00      | Switzerland          | Canada    |
+| 17926766  | Soccer | International | World Cup > Group Stage | 19:00      | Bosnia & Herzegovina | Qatar     |
+| 17588319  | Soccer | International | World Cup > Group Stage | 22:00      | Morocco              | Haiti     |
+| 17588398  | Soccer | International | World Cup > Group Stage | 22:00      | Scotland             | Brazil    |
+
+### June 25, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team      | Away Team   |
+| --------- | ------ | ------------- | ----------------------- | ---------- | -------------- | ----------- |
+| 17588395  | Soccer | International | World Cup > Group Stage | 01:00      | South Africa   | South Korea |
+| 17926764  | Soccer | International | World Cup > Group Stage | 01:00      | Czech Republic | Mexico      |
+| 17588302  | Soccer | International | World Cup > Group Stage | 20:00      | Ecuador        | Germany     |
+| 17588321  | Soccer | International | World Cup > Group Stage | 20:00      | Curacao        | Ivory Coast |
+| 17588236  | Soccer | International | World Cup > Group Stage | 23:00      | Tunisia        | Netherlands |
+| 17926686  | Soccer | International | World Cup > Group Stage | 23:00      | Japan          | Sweden      |
+
+### June 26, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team | Away Team |
+| --------- | ------ | ------------- | ----------------------- | ---------- | --------- | --------- |
+| 17588229  | Soccer | International | World Cup > Group Stage | 02:00      | Paraguay  | Australia |
+| 17926593  | Soccer | International | World Cup > Group Stage | 02:00      | Turkey    | USA       |
+| 17588234  | Soccer | International | World Cup > Group Stage | 19:00      | Norway    | France    |
+| 17926740  | Soccer | International | World Cup > Group Stage | 19:00      | Senegal   | Iraq      |
+
+### June 27, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team   | Away Team    |
+| --------- | ------ | ------------- | ----------------------- | ---------- | ----------- | ------------ |
+| 17588314  | Soccer | International | World Cup > Group Stage | 00:00      | Cape Verde  | Saudi Arabia |
+| 17588404  | Soccer | International | World Cup > Group Stage | 00:00      | Uruguay     | Spain        |
+| 17588309  | Soccer | International | World Cup > Group Stage | 03:00      | Egypt       | Iran         |
+| 17588323  | Soccer | International | World Cup > Group Stage | 03:00      | New Zealand | Belgium      |
+| 17588245  | Soccer | International | World Cup > Group Stage | 21:00      | Croatia     | Ghana        |
+| 17588402  | Soccer | International | World Cup > Group Stage | 21:00      | Panama      | England      |
+| 17588391  | Soccer | International | World Cup > Group Stage | 23:30      | Colombia    | Portugal     |
+| 17926704  | Soccer | International | World Cup > Group Stage | 23:30      | Congo DR    | Uzbekistan   |
+
+### June 28, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team | Away Team |
+| --------- | ------ | ------------- | ----------------------- | ---------- | --------- | --------- |
+| 17588325  | Soccer | International | World Cup > Group Stage | 02:00      | Jordan    | Argentina |
+| 17588326  | Soccer | International | World Cup > Group Stage | 02:00      | Algeria   | Austria   |
+
+## World Cup - Round of 32
+
+### June 28, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team    | Away Team |
+| --------- | ------ | ------------- | ----------------------- | ---------- | ------------ | --------- |
+| 18167317  | Soccer | International | World Cup > Round of 32 | 19:00      | South Africa | Canada    |
+
+### June 29, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team | Away Team |
+| --------- | ------ | ------------- | ----------------------- | ---------- | --------- | --------- |
+| 18172489  | Soccer | International | World Cup > Round of 32 | 17:00      | Brazil    | Japan     |
+| 18175983  | Soccer | International | World Cup > Round of 32 | 20:30      | Germany   | Paraguay  |
+
+### June 30, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team   | Away Team |
+| --------- | ------ | ------------- | ----------------------- | ---------- | ----------- | --------- |
+| 18172260  | Soccer | International | World Cup > Round of 32 | 01:00      | Netherlands | Morocco   |
+| 18175397  | Soccer | International | World Cup > Round of 32 | 17:00      | Ivory Coast | Norway    |
+| 18175981  | Soccer | International | World Cup > Round of 32 | 21:00      | France      | Sweden    |
+
+### July 1, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team | Away Team |
+| --------- | ------ | ------------- | ----------------------- | ---------- | --------- | --------- |
+| 18179759  | Soccer | International | World Cup > Round of 32 | 01:00      | Mexico    | Ecuador   |
+| 18179764  | Soccer | International | World Cup > Round of 32 | 16:00      | England   | Congo DR  |
+| 18179550  | Soccer | International | World Cup > Round of 32 | 20:00      | Belgium   | Senegal   |
+
+### July 2, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team | Away Team            |
+| --------- | ------ | ------------- | ----------------------- | ---------- | --------- | -------------------- |
+| 18172379  | Soccer | International | World Cup > Round of 32 | 00:00      | USA       | Bosnia & Herzegovina |
+| 18179551  | Soccer | International | World Cup > Round of 32 | 19:00      | Spain     | Austria              |
+| 18179763  | Soccer | International | World Cup > Round of 32 | 23:00      | Portugal  | Croatia              |
+
+### July 3, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team   | Away Team  |
+| --------- | ------ | ------------- | ----------------------- | ---------- | ----------- | ---------- |
+| 18179552  | Soccer | International | World Cup > Round of 32 | 03:00      | Switzerland | Algeria    |
+| 18176123  | Soccer | International | World Cup > Round of 32 | 18:00      | Australia   | Egypt      |
+| 18175918  | Soccer | International | World Cup > Round of 32 | 22:00      | Argentina   | Cape Verde |
+
+### July 4, 2026
+
+| fixtureId | Sport  | Country       | Fixture Group           | Time (UTC) | Home Team | Away Team |
+| --------- | ------ | ------------- | ----------------------- | ---------- | --------- | --------- |
+| 18179549  | Soccer | International | World Cup > Round of 32 | 01:30      | Colombia  | Ghana     |
+
+***
+
+<Note>
+  All times are displayed in UTC. Fixtures are subject to change. All matches include Scores and StablePrice Odds coverage.
+</Note>
+
+<Info>
+  **Coverage Details**: The schedule above lists fixtures confirmed for TxLINE match data coverage. Use the fixtures snapshot API for current fixture availability.
+</Info>

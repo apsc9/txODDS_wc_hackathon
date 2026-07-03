@@ -1,0 +1,18 @@
+[toolchain]
+package_manager = "yarn"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.devnet]
+fulltime = "8Jvmqr6XaM2X93KHcMRz3AEP4QKZXUgkZD3imfwMYmRb"
+
+[provider]
+cluster = "devnet"
+wallet = ".keys/dev-wallet.json"
+
+[scripts]
+test = "cargo test"
+
+[hooks]

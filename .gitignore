@@ -1,0 +1,9 @@
+# strategy/planning docs — never publish (repo goes public for submission)
+docs/plans/
+
+data/recordings/
+node_modules/
+target/
+.env*
+*.keypair.json
+.keys/

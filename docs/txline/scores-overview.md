@@ -1,0 +1,34 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://txline-docs.txodds.com/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Overview
+
+> In-venue, scout-verified play-by-play data for US college sports
+
+The TxLINE scores feed delivers granular, real-time play-by-play data for NCAA Football and NCAA Basketball. Collected in-venue by TxODDS scouts and instantly cross-verified by US-based analysts, this feed bypasses repurposed broadcast delays to give you raw, sub-second sports data.
+
+Every stat is encoded and published to Solana, validating directly against on-chain Merkle roots. Any score, period, or player stat is verifiable permissionlessly at any time.
+
+## Built for Settlement & Micro-Markets
+
+This feed is purpose-built for high-frequency betting environments: in-play markets, player props, and micro-betting.
+
+* **Deterministic Encoding:** Every stat maps to a fixed cryptographic key with period multipliers applied on top.
+* **Reliable Proofs:** If you are building automated smart contract settlement logic or validation proofs, the exact layout schemas are defined in the technical specifications below.
+
+## Technical Capabilities
+
+<CardGroup cols={3}>
+  <Card title="Scout-Sourced Data" icon="stadium">
+    Direct-from-stadium collection removes broadcast lag and delay vulnerabilities.
+  </Card>
+
+  <Card title="Deterministic Architecture" icon="code">
+    Fixed-key encoding tailored for programmatic trade settlement and smart contracts.
+  </Card>
+
+  <Card title="High-Availability Pipelines" icon="server">
+    Redundant infrastructure engineered for zero data loss during peak tournament events.
+  </Card>
+</CardGroup>
