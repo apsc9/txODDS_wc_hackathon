@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-fulltime = "8Jvmqr6XaM2X93KHcMRz3AEP4QKZXUgkZD3imfwMYmRb"
+fulltime = "2MzYe6Zo4AD2fuszYou7CcnVmo7cdq4WjKi8UERL652L"
 
 [provider]
 cluster = "devnet"

@@ -51,6 +51,14 @@ Full P2P trading system: `create_intent`/`execute_match` (intent + solver matchi
 - **`Bookmaker: "TXLineStablePriceDemargined"` provides de-vigged prices with `Pct` fields directly** — the agent's fair-probability input needs no de-vig math of its own.
 - SSE event ids look like `{intervalStartMs}:{seq}`.
 
+## Verified live (2026-07-05, devnet) — deployed program end-to-end
+
+- **FullTime deployed** at `2MzYe6Zo4AD2fuszYou7CcnVmo7cdq4WjKi8UERL652L` (upgrade authority = dev wallet). Gotcha fixed on the way: scaffold `declare_id!` didn't match the deploy keypair → every ix would fail `DeclaredProgramIdMismatch`; keep `target/deploy/fulltime-keypair.json` = `.keys/fulltime-program.json`.
+- **Full loop verified on devnet with a fresh API proof** (`packages/ingest/src/smoke-devnet.ts`): create_market → buy YES → resolve (CPI into real oracle, ResolvedYes) → claim → withdraw_liquidity; vault drained to exactly 0.
+- **Zero-valued stats are NOT provable**: oracle rejects `value: 0` proofs with `StatNotZero` (6074) during "R2 validation", even though the API serves them. Consequences for market design:
+  - Predicates that need a zero stat exhibited (clean sheet, "over X" resolving NO on 0-0) can't settle directly → void/timeout fallback is the safety net (already built).
+  - Prefer predicates likely to have nonzero stats at FT; keepers should check `statToProve.value > 0` before attempting resolve.
+
 ## Soccer encodings (for resolution rules)
 
 - Game phases: 1 NS, 2 H1, 3 HT, 4 H2, **5 F (final)**, 6 WET, 7 ET1, 8 HTET, 9 ET2, **10 FET**, 11 WPE, 12 PE, **13 FPE**, 14 Interrupted, **15 Abandoned, 16 Cancelled, 19 Postponed (→ void path)**, 17/18 TX coverage cancelled/suspended.

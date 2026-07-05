@@ -17,7 +17,7 @@ use error::FulltimeError;
 use oracle::{TraderPredicate, ValidationBundle};
 use state::*;
 
-declare_id!("8Jvmqr6XaM2X93KHcMRz3AEP4QKZXUgkZD3imfwMYmRb");
+declare_id!("2MzYe6Zo4AD2fuszYou7CcnVmo7cdq4WjKi8UERL652L");
 
 /// Trading side of a binary market.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]

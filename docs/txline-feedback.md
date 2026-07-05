@@ -24,6 +24,10 @@ Running log of our team's experience with the TxLINE API during the World Cup ha
 - **2026-07-03** — `validate_stat` actual cost ≈ **199K CU**, far below the 1.4M budget in docs — CPI-friendly. Worth documenting the real number; it materially changes integrator design.
 - **2026-07-03** — `TXLineStablePriceDemargined` stream with `Pct` implied probabilities is exactly what algorithmic consumers want; saved us writing de-vig logic.
 
+## Friction (settlement semantics)
+
+- **2026-07-05** — **Zero-valued stats are unprovable.** `/api/scores/stat-validation` happily returns a proof for a stat with `value: 0`, but on-chain `validate_stat` rejects it with `StatNotZero` (6074, `utils.rs:221`, "R2 validation" phase). Undocumented, with real consequences for anyone settling markets on TxLINE: any predicate whose truth requires exhibiting a zero stat (e.g. proving a clean sheet, or resolving "over 0.5 goals" as NO after a 0-0) cannot be settled directly and needs a void/timeout fallback. Either the docs should state that only nonzero stat values are provable by inclusion, or the API should refuse to emit proofs the oracle will reject (e.g. 409 with an explanation).
+
 ## Bugs
 
 _(none confirmed yet)_
