@@ -5,5 +5,7 @@ data/recordings/
 node_modules/
 target/
 .env*
+!.env.local.example
 *.keypair.json
 .keys/
+.superpowers/
