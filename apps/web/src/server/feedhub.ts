@@ -1,7 +1,8 @@
 import "server-only";
 
 import { fetchFixturesSnapshot, openStream, type Fixture } from "./txline";
-import { decodeStatKey, BASE, type PredicateFields } from "../lib/statkeys";
+import { decodeStatKey, BASE } from "../lib/statkeys";
+import type { MarketDTO as ChainMarketDTO } from "../lib/types";
 
 const HISTORY_CAP = 2000;
 
@@ -38,11 +39,18 @@ export type HubEvent =
   | { type: "markets" }
   | { type: "feed"; up: boolean };
 
-// The full DTO (pda, mint, pools, status, ...) is defined in Task 6's
-// server/chain.ts, which reads/writes hub.marketCache. `fairPpmFor` only
-// needs the predicate shape it already knows from Task 3 plus the fixture it
-// belongs to, so we key off that minimal, forward-compatible slice here.
-export type MarketDTO = PredicateFields & { fixtureId: number };
+// The full DTO (pda, mint, pools, status, ...) is defined in `lib/types.ts`
+// and populated by `server/chain.ts`'s poller — that's what `marketCache`
+// actually stores. `fairPpmFor` (and this module's original, pre-chain.ts
+// public `MarketDTO` export) only ever reads the predicate shape plus
+// fixtureId, so it stays a `Pick` derived from the canonical type rather
+// than the full thing: derived (can't drift from `lib/types.ts`), but still
+// structurally satisfied by minimal hand-built predicate objects — including
+// a full `ChainMarketDTO`, since it's a structural superset.
+export type MarketDTO = Pick<
+  ChainMarketDTO,
+  "statKeyA" | "statKeyB" | "op" | "comparison" | "threshold" | "fixtureId"
+>;
 
 export type Hub = {
   fixtures: Map<number, Fixture>;
@@ -50,13 +58,17 @@ export type Hub = {
   consensus: Map<string, Consensus>;
   history: Map<string, PricePoint[]>;
   goalEvents: Map<number, GoalEvent[]>;
-  marketCache: Map<string, MarketDTO>;
+  marketCache: Map<string, ChainMarketDTO>;
   feedUp: boolean;
   lastPacketTs: number;
   start(): void;
   fairPpmFor(m: MarketDTO): number | null;
   pushPrice(marketPda: string, point: PricePoint): void;
   subscribe(fn: (evt: HubEvent) => void): () => void;
+  // Narrow wrapper around the internal `emit` — `chain.ts`'s poller needs to
+  // announce a `{type:"markets"}` change after diffing `marketCache`, but
+  // `emit` itself stays unexported so arbitrary events can't be injected.
+  emitMarketsChanged(): void;
 };
 
 type OddsPacket = {
@@ -90,7 +102,7 @@ function buildHub(): HubBuild {
   const consensus = new Map<string, Consensus>();
   const history = new Map<string, PricePoint[]>();
   const goalEvents = new Map<number, GoalEvent[]>();
-  const marketCache = new Map<string, MarketDTO>();
+  const marketCache = new Map<string, ChainMarketDTO>();
   const listeners = new Set<(evt: HubEvent) => void>();
 
   let started = false;
@@ -122,6 +134,10 @@ function buildHub(): HubBuild {
     return () => {
       listeners.delete(fn);
     };
+  }
+
+  function emitMarketsChanged(): void {
+    emit({ type: "markets" });
   }
 
   function pushPrice(marketPda: string, point: PricePoint): void {
@@ -284,6 +300,7 @@ function buildHub(): HubBuild {
     fairPpmFor,
     pushPrice,
     subscribe,
+    emitMarketsChanged,
   };
 
   return { hub: self, ingestOdds, ingestScores };
