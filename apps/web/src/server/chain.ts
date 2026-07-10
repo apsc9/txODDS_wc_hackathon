@@ -173,11 +173,19 @@ export function scheduleChainPolling(
   tick();
 }
 
+// Flag is set only *after* `getProgram()` returns successfully — it
+// constructs the Anchor `Program` client and can throw synchronously (seen
+// live as "Wallet is not a constructor"). Setting the flag first would make
+// a throwing attempt permanently "started" (per the module-scope once-guard
+// contract other callers rely on), so every later call would short-circuit
+// as a no-op instead of retrying. Once `getProgram()` succeeds, the flag
+// goes up before scheduling — matching the idempotency the comment on the
+// `declare global` above promises for the success path.
 export function startChainPoller(): void {
   if (globalThis.__fulltimeChainStarted) return;
-  globalThis.__fulltimeChainStarted = true;
 
   const program = getProgram();
+  globalThis.__fulltimeChainStarted = true;
   scheduleChainPolling(() => poll(program));
 }
 

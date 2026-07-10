@@ -13,7 +13,7 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const fixtureIdParam = new URL(request.url).searchParams.get("fixtureId");
-  if (fixtureIdParam === null) {
+  if (!fixtureIdParam) {
     return Response.json({ error: "fixtureId is required" }, { status: 400 });
   }
 

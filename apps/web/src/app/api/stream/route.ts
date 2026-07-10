@@ -92,7 +92,16 @@ export async function GET(request: Request): Promise<Response> {
         safeEnqueue(": heartbeat\n\n");
       }, HEARTBEAT_MS);
 
-      request.signal.addEventListener("abort", () => cleanup(controller));
+      // If the request was already aborted by the time this callback runs,
+      // the "abort" event has already fired and a listener added now would
+      // never see it — leaking the subscription + heartbeat interval
+      // forever. Run the same teardown immediately in that case instead of
+      // waiting on an event that isn't coming.
+      if (request.signal.aborted) {
+        cleanup(controller);
+      } else {
+        request.signal.addEventListener("abort", () => cleanup(controller));
+      }
     },
     cancel() {
       // Reader-initiated cancel (distinct from request.signal abort, e.g. a
@@ -100,6 +109,14 @@ export async function GET(request: Request): Promise<Response> {
       // the hub listener/heartbeat timer never outlives its stream. Doesn't
       // call controller.close() here — a cancelled stream's controller is
       // already gone; just stop the timer/subscription side effects.
+      //
+      // Guarded the same way `cleanup()` is: cancel() and the abort listener
+      // can both fire for the same disconnect (reader cancel *and*
+      // request.signal abort), and without this guard the second call would
+      // run `unsubscribe?.()` again — harmless on its own (Set#delete of an
+      // already-removed entry), but it's the same double-teardown hazard
+      // `cleanup()` already guards against, so cancel() should too.
+      if (closed) return;
       closed = true;
       if (heartbeat) clearInterval(heartbeat);
       unsubscribe?.();

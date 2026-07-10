@@ -24,12 +24,20 @@ declare global {
 // error. It intentionally runs *before* the guard flag is set, so a request
 // made after the creds file is fixed (e.g. by re-running the auth CLI) can
 // retry the whole boot sequence instead of being stuck failed forever.
+//
+// The flag is likewise set *after* `hub.start()` and `startChainPoller()`
+// both return, not before. `startChainPoller()` can throw synchronously
+// (`getProgram()` constructing the Anchor client) — if the flag were set
+// first, that throw would still leave every future `ensureStarted()` call a
+// silent no-op forever (routes serving empty/stale 200s until the process
+// restarts) instead of retrying on the next request, same reasoning as the
+// creds check above.
 export function ensureStarted(): void {
   if (globalThis.__fulltimeBooted) return;
   loadTxlineCreds();
-  globalThis.__fulltimeBooted = true;
   hub.start();
   startChainPoller();
+  globalThis.__fulltimeBooted = true;
 }
 
 // Shared by every route: turns a thrown Error (notably loadTxlineCreds's
