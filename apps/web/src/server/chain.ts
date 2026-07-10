@@ -144,19 +144,41 @@ async function poll(program: anchor.Program): Promise<void> {
   if (changed) hub.emitMarketsChanged();
 }
 
+// Exported for tests: runs `runOnce` and only schedules the next tick once
+// the current one has settled (resolved *or* rejected) — a recursive
+// setTimeout rather than setInterval. This guarantees ticks never overlap:
+// `program.account.market.all()` is a getProgramAccounts call that routinely
+// takes >2s on the public devnet RPC, and overlapping polls would duplicate
+// hub.pushPrice entries (chart jitter), pile up RPC load exactly when the
+// RPC is already struggling, and race on hub.marketCache.set (a slower
+// earlier response could clobber a newer one). Scheduling from settle-time
+// also means cadence naturally backs off when the RPC is slow, instead of
+// firing on a fixed wall-clock grid regardless of how long the last poll
+// took. The .catch keeps outage-survival behavior: a failed poll still
+// reschedules rather than killing the loop.
+export function scheduleChainPolling(
+  runOnce: () => Promise<void>,
+  intervalMs: number = POLL_INTERVAL_MS,
+): void {
+  const tick = () => {
+    runOnce()
+      .catch((err) => {
+        console.error("chain: poll failed", err);
+      })
+      .finally(() => {
+        setTimeout(tick, intervalMs);
+      });
+  };
+
+  tick();
+}
+
 export function startChainPoller(): void {
   if (globalThis.__fulltimeChainStarted) return;
   globalThis.__fulltimeChainStarted = true;
 
   const program = getProgram();
-  const tick = () => {
-    poll(program).catch((err) => {
-      console.error("chain: poll failed", err);
-    });
-  };
-
-  tick();
-  setInterval(tick, POLL_INTERVAL_MS);
+  scheduleChainPolling(() => poll(program));
 }
 
 export async function fetchPositions(owner: string): Promise<PositionDTO[]> {
