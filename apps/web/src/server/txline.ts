@@ -117,12 +117,21 @@ export function openStream(
   let stopped = false;
   let backoffMs = 1000;
   const maxBackoffMs = 30000;
+  let controller: AbortController | null = null;
 
   async function connect(): Promise<void> {
     while (!stopped) {
+      controller = new AbortController();
       try {
-        const url = `${apiBase()}/api/stream/${stream}`;
-        const res = await fetch(url, { headers: authHeaders() });
+        const url = `${apiBase()}/api/${stream}/stream`;
+        const res = await fetch(url, {
+          headers: {
+            ...authHeaders(),
+            Accept: "text/event-stream",
+            "Cache-Control": "no-cache",
+          },
+          signal: controller.signal,
+        });
         if (!res.ok || !res.body) {
           throw new Error(`TxLINE stream ${stream} failed: ${res.status} ${res.statusText}`);
         }
@@ -131,20 +140,34 @@ export function openStream(
           backoffMs = 1000;
           onMsg(message.data, message.event ?? null);
         }
-      } catch {
-        // fall through to reconnect below
+      } catch (err) {
+        if (stopped && err instanceof Error && err.name === "AbortError") {
+          // stop() aborted the in-flight connection — clean shutdown, not a failure.
+          break;
+        }
+        // any other error (network, non-ok status, mid-stream drop): fall
+        // through to reconnect below
       }
 
       if (stopped) break;
-      onDown();
+      try {
+        onDown();
+      } catch {
+        // a throwing onDown must not break the reconnect loop or produce an
+        // unhandled rejection
+      }
       await sleep(backoffMs);
       backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
     }
   }
 
-  void connect();
+  void connect().catch(() => {
+    // defense-in-depth: connect()'s internal loop already catches everything,
+    // but guard against an unhandled rejection if that ever changes.
+  });
 
   return () => {
     stopped = true;
+    controller?.abort();
   };
 }

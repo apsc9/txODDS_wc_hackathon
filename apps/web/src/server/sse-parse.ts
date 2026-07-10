@@ -47,6 +47,16 @@ export async function* readSseMessages(response: Response): AsyncGenerator<SseMe
     const message = parseSseBlock(buffer);
     if (message) yield message;
   } finally {
+    // Deviation from vendored packages/ingest/src/sse.ts: also cancel the
+    // reader (not just releaseLock) so an aborted/discarded stream doesn't
+    // leave the underlying connection dangling when a caller stops consuming
+    // this generator early (e.g. openStream's stop()). cancel() errors are
+    // expected when the stream was already aborted upstream.
+    try {
+      await reader.cancel();
+    } catch {
+      // ignore — stream may already be closed/aborted
+    }
     reader.releaseLock();
   }
 }
