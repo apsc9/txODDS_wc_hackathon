@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { hub, ingestOdds, ingestScores, type MarketDTO } from "../src/server/feedhub";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { hub, ingestOdds, ingestScores, type MarketDTO, type HubEvent } from "../src/server/feedhub";
 import { encodeStatKey, BASE } from "../src/lib/statkeys";
 
 // Real recorded packet: data/recordings/devnet-odds-2026-07-07.jsonl, first
@@ -25,6 +25,31 @@ beforeEach(() => {
   hub.scores.clear();
   hub.goalEvents.clear();
   hub.history.clear();
+});
+
+describe("emit / subscribe", () => {
+  it("isolates listener errors: a throwing listener doesn't block others or propagate", () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const received: HubEvent[] = [];
+    const unsubThrower = hub.subscribe(() => {
+      throw new Error("boom");
+    });
+    const unsubReceiver = hub.subscribe((evt) => {
+      received.push(evt);
+    });
+
+    try {
+      expect(() => ingestScores(scoresPacket(999, 0))).not.toThrow();
+      // ingestScores may also emit a "feed" event (feedUp transition) ahead
+      // of the "score" event depending on prior test state — isolation is
+      // about the "score" event still reaching this listener, not ordering.
+      expect(received).toContainEqual({ type: "score", fixtureId: 999 });
+    } finally {
+      unsubThrower();
+      unsubReceiver();
+      errSpy.mockRestore();
+    }
+  });
 });
 
 describe("ingestOdds", () => {
@@ -65,6 +90,35 @@ describe("ingestScores", () => {
 
     expect(hub.scores.get(999)).toEqual(before);
   });
+
+  it("does not fabricate goal events on cold start mid-match", () => {
+    // Connecting mid-match: the first packet we ever see for this fixture
+    // already shows a 2-1 score. There is no prior packet to diff against,
+    // so this must seed the baseline silently rather than emit 3 fake goals.
+    ingestScores(
+      JSON.stringify({
+        FixtureId: 555,
+        GameState: "live",
+        Ts: 1000,
+        Seq: 1,
+        Clock: { Running: true, Seconds: 42 },
+        Stats: { "1": 2, "2": 1 },
+      })
+    );
+    expect(hub.goalEvents.get(555)).toEqual([]);
+
+    ingestScores(
+      JSON.stringify({
+        FixtureId: 555,
+        GameState: "live",
+        Ts: 2000,
+        Seq: 2,
+        Clock: { Running: true, Seconds: 55 },
+        Stats: { "1": 3, "2": 1 },
+      })
+    );
+    expect(hub.goalEvents.get(555)).toEqual([{ ts: 2000, clockSeconds: 55, team: 1 }]);
+  });
 });
 
 describe("pushPrice", () => {
@@ -95,6 +149,12 @@ describe("fairPpmFor", () => {
   });
 
   it("returns null when there is no consensus entry", () => {
+    expect(hub.fairPpmFor(totalGoalsMarket)).toBeNull();
+  });
+
+  it("returns null when the consensus pct is NaN (malformed Pct string)", () => {
+    const malformed = REAL_OVERUNDER_ODDS_LINE.replace('"48.031"', '"not-a-number"');
+    ingestOdds(malformed);
     expect(hub.fairPpmFor(totalGoalsMarket)).toBeNull();
   });
 

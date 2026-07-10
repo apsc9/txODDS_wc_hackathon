@@ -98,7 +98,16 @@ function buildHub(): HubBuild {
   let stopScores: (() => void) | null = null;
 
   function emit(evt: HubEvent): void {
-    for (const fn of listeners) fn(evt);
+    for (const fn of listeners) {
+      try {
+        fn(evt);
+      } catch (err) {
+        // A subscriber's own bug must not look like a stream failure to the
+        // caller (ingestScores/ingestOdds run inside openStream's message
+        // loop) — one bad listener would otherwise take the whole feed down.
+        console.error("feedhub: listener threw", err);
+      }
+    }
   }
 
   function setFeedUp(up: boolean): void {
@@ -140,7 +149,7 @@ function buildHub(): HubBuild {
         const key = `${m.fixtureId}:OVERUNDER_PARTICIPANT_GOALS:line=${m.threshold}.5`;
         const c = consensus.get(key);
         const pct = c?.pctByName["over"];
-        return typeof pct === "number" ? Math.round(pct * 10000) : null;
+        return Number.isFinite(pct) ? Math.round((pct as number) * 10000) : null;
       }
       return null;
     }
@@ -149,7 +158,7 @@ function buildHub(): HubBuild {
       const key = `${m.fixtureId}:1X2_PARTICIPANT_RESULT:`;
       const c = consensus.get(key);
       const pct = c?.pctByName["part1"];
-      return typeof pct === "number" ? Math.round(pct * 10000) : null;
+      return Number.isFinite(pct) ? Math.round((pct as number) * 10000) : null;
     }
 
     return null;
@@ -224,18 +233,23 @@ function buildHub(): HubBuild {
     };
     scores.set(fixtureId, next);
 
-    const prevG1 = prev?.stats["1"] ?? 0;
-    const prevG2 = prev?.stats["2"] ?? 0;
-    const nextG1 = stats["1"] ?? 0;
-    const nextG2 = stats["2"] ?? 0;
-
     let events = goalEvents.get(fixtureId);
     if (!events) {
       events = [];
       goalEvents.set(fixtureId, events);
     }
-    if (nextG1 > prevG1) events.push({ ts, clockSeconds, team: 1 });
-    if (nextG2 > prevG2) events.push({ ts, clockSeconds, team: 2 });
+
+    // If we've never seen this fixture before, this packet is our baseline,
+    // not a delta — a mid-match connect (e.g. score already 2-1) must not
+    // be read as 3 goals just scored. Only diff once we have a real `prev`.
+    if (prev !== undefined) {
+      const prevG1 = prev.stats["1"] ?? 0;
+      const prevG2 = prev.stats["2"] ?? 0;
+      const nextG1 = stats["1"] ?? 0;
+      const nextG2 = stats["2"] ?? 0;
+      if (nextG1 > prevG1) events.push({ ts, clockSeconds, team: 1 });
+      if (nextG2 > prevG2) events.push({ ts, clockSeconds, team: 2 });
+    }
 
     emit({ type: "score", fixtureId });
   }
