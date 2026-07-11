@@ -14,3 +14,8 @@ export function impliedProbPpm(poolThis: bigint, poolOther: bigint): number | nu
   if (total === 0n) return null;
   return Number((poolOther * 1_000_000n) / total);
 }
+// ppm (0..1_000_000) -> integer cents (0..100), for MarketDTO.yesPpm price
+// buttons (Task 11 brief: "yesPpm/10000 -> ¢").
+export function ppmToCents(ppm: number): number {
+  return Math.round(ppm / 10_000);
+}

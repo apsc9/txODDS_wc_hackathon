@@ -6,6 +6,7 @@ import {
   predicateMono,
   predicateHuman,
   canNeedZeroStat,
+  marketGroup,
   type PredicateFields,
 } from "../src/lib/statkeys";
 
@@ -125,5 +126,58 @@ describe("statkeys: canNeedZeroStat", () => {
       threshold: 2,
     };
     expect(canNeedZeroStat(m)).toBe(true);
+  });
+});
+
+describe("statkeys: marketGroup", () => {
+  it("goals-over -> GOALS", () => {
+    const m: PredicateFields = {
+      statKeyA: 1,
+      statKeyB: 2,
+      op: "Add",
+      comparison: "GreaterThan",
+      threshold: 2,
+    };
+    expect(marketGroup(m)).toBe("GOALS");
+  });
+  it("corners-over -> CORNERS", () => {
+    const m: PredicateFields = {
+      statKeyA: 7,
+      statKeyB: 8,
+      op: "Add",
+      comparison: "GreaterThan",
+      threshold: 8,
+    };
+    expect(marketGroup(m)).toBe("CORNERS");
+  });
+  it("yellows-over -> CARDS", () => {
+    const m: PredicateFields = {
+      statKeyA: 3,
+      statKeyB: 4,
+      op: "Add",
+      comparison: "GreaterThan",
+      threshold: 3,
+    };
+    expect(marketGroup(m)).toBe("CARDS");
+  });
+  it("reds-over -> CARDS", () => {
+    const m: PredicateFields = {
+      statKeyA: 5,
+      statKeyB: 6,
+      op: "Add",
+      comparison: "GreaterThan",
+      threshold: 0,
+    };
+    expect(marketGroup(m)).toBe("CARDS");
+  });
+  it("home-win (goals subtract) -> RESULT even though statKeyA is a goals key", () => {
+    const m: PredicateFields = {
+      statKeyA: 1,
+      statKeyB: 2,
+      op: "Subtract",
+      comparison: "GreaterThan",
+      threshold: 0,
+    };
+    expect(marketGroup(m)).toBe("RESULT");
   });
 });

@@ -46,3 +46,16 @@ export function useMarkets(fixtureId?: number, initial: MarketDTO[] = []): Marke
   });
   return fixtureId === undefined ? data : data.filter((m) => m.fixtureId === fixtureId);
 }
+
+// Global feed-health flag, pushed by useStream()'s "snapshot"/"feed" SSE
+// listeners (src/hooks/use-stream.ts). Used by the fixture page's STALE
+// badge (see src/lib/match-list.ts's `isFeedStale`).
+export function useFeedUp(initial: boolean): boolean {
+  const { data } = useQuery({
+    queryKey: ["feedUp"],
+    queryFn: () => initial,
+    initialData: initial,
+    staleTime: Infinity,
+  });
+  return data;
+}

@@ -1,0 +1,243 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState, type KeyboardEvent } from "react";
+import type { Fixture, LiveScore, MarketDTO } from "@/lib/types";
+import { useFeedUp, useMarkets, useScores } from "@/hooks/use-markets";
+import { formatPooled, isFeedStale, sumPooled } from "@/lib/match-list";
+import { canNeedZeroStat, marketGroup, predicateHuman, predicateMono, type MarketGroup } from "@/lib/statkeys";
+import { ppmToCents } from "@/lib/fpmm";
+import { Scorebug } from "@/components/scorebug";
+
+// ---------------------------------------------------------------------------
+// MarketRow — one v4-style market row (open or settled). Purely
+// presentational: all state (selection, tab filter, live data) lives in
+// `MarketBoard` below, which is the client hydration boundary for this
+// file (both live here per the Task 11 brief's 3-file cap — see
+// task-11-report.md).
+// ---------------------------------------------------------------------------
+
+type MarketRowProps = {
+  m: MarketDTO;
+  selected: boolean;
+  onSelect: (m: MarketDTO, side?: "YES" | "NO") => void;
+  t1?: string;
+  t2?: string;
+  stale?: boolean;
+};
+
+const SETTLED_LABEL: Record<string, string> = {
+  ResolvedYes: "YES",
+  ResolvedNo: "NO",
+  Voided: "VOID",
+};
+
+export function MarketRow({ m, selected, onSelect, t1, t2, stale = false }: MarketRowProps) {
+  const settled = m.status !== "Open";
+
+  function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onSelect(m);
+    }
+  }
+
+  if (settled) {
+    return (
+      <div className="flex items-center justify-between border border-[var(--line)] bg-[var(--bg)] px-4 py-3">
+        <div>
+          <div className="text-sm text-[var(--t3)]">{predicateHuman(m, t1, t2)}</div>
+          <div className="font-mono-num mt-1 text-[11px] text-[var(--t4)]">
+            {predicateMono(m)} · settled · proof on-chain
+          </div>
+        </div>
+        <Link
+          href={`/receipt/${m.pda}`}
+          className="font-mono-num whitespace-nowrap border border-[var(--gold)] px-3 py-1.5 text-[11px] text-[var(--gold)] transition-colors hover:bg-[var(--surface-hi)]"
+        >
+          ✓ {SETTLED_LABEL[m.status] ?? m.status} · VIEW RECEIPT
+        </Link>
+      </div>
+    );
+  }
+
+  const pool = BigInt(m.poolYes) + BigInt(m.poolNo);
+  const yesCents = ppmToCents(m.yesPpm);
+  const noCents = 100 - yesCents;
+  const fair = (m.yesPpm / 1_000_000).toFixed(2);
+  const zeroStatWarn = canNeedZeroStat(m);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      onClick={() => onSelect(m)}
+      onKeyDown={handleKeyDown}
+      className={`flex cursor-pointer items-center justify-between border px-4 py-3 transition-colors ${
+        selected
+          ? "border-[var(--gold)] bg-[var(--surface-hi)]"
+          : "border-[var(--line)] bg-[var(--surface)] hover:border-[var(--line-hi)]"
+      }`}
+    >
+      <div>
+        <div className="text-sm text-[var(--chalk)]">{predicateHuman(m, t1, t2)}</div>
+        <div className="font-mono-num mt-1 text-[11px] text-[var(--t3)]">
+          {predicateMono(m)} · {formatPooled(pool)} pool · fair {fair}
+        </div>
+        {zeroStatWarn && (
+          <div className="font-mono-num mt-1 text-[10px] text-[var(--t4)]">
+            settles via void path on 0 outcome — refund at cost basis
+          </div>
+        )}
+      </div>
+      <div className={`flex shrink-0 gap-2 ${stale ? "opacity-40 grayscale" : ""}`}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(m, "YES");
+          }}
+          className="font-mono-num bg-[var(--yes)] px-3.5 py-1.5 text-[13px] font-semibold text-[var(--bg)]"
+        >
+          YES {yesCents}¢
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(m, "NO");
+          }}
+          className="font-mono-num border border-[var(--no)] px-3.5 py-1.5 text-[13px] text-[var(--no)]"
+        >
+          NO {noCents}¢
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MarketBoard — client hydration boundary for the fixture page: renders the
+// scorebug + group tabs + rows, reading the SSE-fed TanStack caches (seeded
+// by the RSC page's `initial` snapshot — same pattern as Task 9's
+// src/components/match-list.tsx).
+// ---------------------------------------------------------------------------
+
+export type MarketBoardInitial = {
+  fixture: Fixture;
+  scores: Record<number, LiveScore>;
+  markets: MarketDTO[];
+};
+
+const GROUPS: MarketGroup[] = ["GOALS", "CORNERS", "CARDS", "RESULT"];
+
+function deepestPool(markets: MarketDTO[]): MarketDTO | undefined {
+  let best: MarketDTO | undefined;
+  let bestPool = -1n;
+  for (const m of markets) {
+    const pool = BigInt(m.poolYes) + BigInt(m.poolNo);
+    if (pool > bestPool) {
+      bestPool = pool;
+      best = m;
+    }
+  }
+  return best;
+}
+
+export function MarketBoard({
+  fixtureId,
+  initial,
+  initialFeedUp,
+}: {
+  fixtureId: number;
+  initial: MarketBoardInitial;
+  initialFeedUp: boolean;
+}) {
+  const { data: scores } = useScores(initial.scores);
+  const markets = useMarkets(fixtureId, initial.markets);
+  const feedUp = useFeedUp(initialFeedUp);
+
+  const score = scores[fixtureId];
+  const stale = isFeedStale(feedUp, score?.recvTs);
+  const pooled = sumPooled(markets);
+
+  // Selection defaults to the deepest-pool market at mount and is otherwise
+  // fully user-driven — deliberately not re-derived on every `markets`
+  // update (a live pool shift shouldn't yank the user's current selection
+  // out from under them). Drives Task 12/13's rail + chart; the rail is a
+  // placeholder this task, so nothing downstream reads this yet beyond the
+  // row highlight itself.
+  const [selected, setSelected] = useState<MarketDTO | undefined>(() =>
+    deepestPool(initial.markets)
+  );
+  const [activeGroup, setActiveGroup] = useState<MarketGroup>(() => {
+    const deepest = deepestPool(initial.markets);
+    return deepest ? marketGroup(deepest) : "GOALS";
+  });
+
+  const grouped = useMemo(() => {
+    const map = new Map<MarketGroup, MarketDTO[]>();
+    for (const g of GROUPS) map.set(g, []);
+    for (const m of markets) {
+      map.get(marketGroup(m))?.push(m);
+    }
+    return map;
+  }, [markets]);
+
+  function handleSelect(m: MarketDTO, _side?: "YES" | "NO") {
+    // `_side` presets the buy-slip side once Task 12/13 wires up the rail —
+    // not consumed yet since the rail is a placeholder this task.
+    setSelected(m);
+  }
+
+  const visible = grouped.get(activeGroup) ?? [];
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Scorebug f={initial.fixture} score={score} pooled={pooled} feedUp={feedUp} />
+
+      <div className="flex items-center gap-5 border-b border-[var(--line)] pb-2.5">
+        {GROUPS.map((g) => (
+          <button
+            key={g}
+            type="button"
+            onClick={() => setActiveGroup(g)}
+            className={
+              g === activeGroup
+                ? "font-display -mb-[11px] border-b-2 border-[var(--gold)] pb-2.5 text-sm font-bold tracking-wide text-[var(--chalk)]"
+                : "font-display text-sm font-semibold tracking-wide text-[var(--t3)] transition-colors hover:text-[var(--t2)]"
+            }
+          >
+            {g}
+          </button>
+        ))}
+        <button
+          type="button"
+          disabled
+          className="font-display ml-auto cursor-default text-sm font-semibold tracking-wide text-[var(--gold)] opacity-70"
+        >
+          + CREATE MARKET
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {visible.length === 0 ? (
+          <p className="text-sm text-[var(--t3)]">No markets in this group yet.</p>
+        ) : (
+          visible.map((m) => (
+            <MarketRow
+              key={m.pda}
+              m={m}
+              selected={selected?.pda === m.pda}
+              onSelect={handleSelect}
+              t1={initial.fixture.Participant1}
+              t2={initial.fixture.Participant2}
+              stale={stale}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}

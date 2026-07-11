@@ -3,6 +3,8 @@ import {
   classifyFixtureStatus,
   flag,
   teamCode,
+  teamColors,
+  isFeedStale,
   sumPooled,
   formatPooled,
   formatClock,
@@ -61,6 +63,38 @@ describe("flag / teamCode", () => {
   it("falls back to ⚽ and a generated 3-letter code for an unknown participant", () => {
     expect(flag("Atlantis")).toBe("⚽");
     expect(teamCode("Atlantis")).toBe("ATL");
+  });
+});
+
+describe("teamColors", () => {
+  it("resolves a known WC-32-table country to its two-hex-stop pair", () => {
+    expect(teamColors("France")).toEqual(["#1E3FAE", "#E02020"]);
+    expect(teamColors("Brazil")).toEqual(["#FFDF00", "#009C3B"]);
+  });
+
+  it("falls back to #2a332c/#2a332c for an unknown participant", () => {
+    expect(teamColors("Atlantis")).toEqual(["#2a332c", "#2a332c"]);
+  });
+});
+
+describe("isFeedStale", () => {
+  it("is stale whenever feedUp is false, regardless of lastPacketTs", () => {
+    expect(isFeedStale(false, undefined, 1_000_000)).toBe(true);
+    expect(isFeedStale(false, 999_999, 1_000_000)).toBe(true);
+  });
+
+  it("is not stale when feedUp is true and no packet has arrived yet", () => {
+    expect(isFeedStale(true, undefined, 1_000_000)).toBe(false);
+  });
+
+  it("is not stale when feedUp is true and the last packet is within 90s", () => {
+    const now = 1_000_000;
+    expect(isFeedStale(true, now - 89_000, now)).toBe(false);
+  });
+
+  it("is stale when feedUp is true but the last packet is older than 90s", () => {
+    const now = 1_000_000;
+    expect(isFeedStale(true, now - 91_000, now)).toBe(true);
   });
 });
 

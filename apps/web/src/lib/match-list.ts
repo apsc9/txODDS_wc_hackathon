@@ -120,6 +120,93 @@ export function teamCode(participant: string): string {
   return COUNTRIES[participant]?.code ?? participant.slice(0, 3).toUpperCase();
 }
 
+// Two hex stops per participant, for the fixture page scorebug's team-color
+// edge bars (Task 11 brief: "WC-32 map to two hex stops, fallback
+// #2a332c"). This is team-identity DATA (same category as the flag emoji
+// table above), not UI chrome, so literal hex is fine here per the Global
+// Constraints note — the components consuming it (scorebug.tsx) still use
+// CSS-var tokens for everything else. Approximate national-kit colors
+// (primary/secondary), not exact Pantone flag specs; good enough for a
+// devnet demo edge bar. Same key set as COUNTRIES above (WC-32-style plus
+// the Friendlies test fixtures).
+export type TeamColorStops = [string, string];
+
+const TEAM_COLORS: Record<string, TeamColorStops> = {
+  Argentina: ["#75AADB", "#FFFFFF"],
+  Australia: ["#00843D", "#FFCD00"],
+  Belgium: ["#000000", "#ED2939"],
+  Brazil: ["#FFDF00", "#009C3B"],
+  Cameroon: ["#007A5E", "#CE1126"],
+  Canada: ["#FF0000", "#FFFFFF"],
+  Chile: ["#D52B1E", "#0039A6"],
+  Colombia: ["#FCD116", "#003893"],
+  "Costa Rica": ["#CE1126", "#002B7F"],
+  Croatia: ["#FF0000", "#FFFFFF"],
+  Denmark: ["#C60C30", "#FFFFFF"],
+  Ecuador: ["#FFDD00", "#034EA2"],
+  Egypt: ["#CE1126", "#000000"],
+  England: ["#FFFFFF", "#CE1124"],
+  France: ["#1E3FAE", "#E02020"],
+  Germany: ["#000000", "#DD0000"],
+  Ghana: ["#CE1126", "#006B3F"],
+  Iran: ["#239F40", "#DA0000"],
+  Italy: ["#008C45", "#CD212A"],
+  Japan: ["#FFFFFF", "#BC002D"],
+  Mexico: ["#006847", "#CE1126"],
+  Morocco: ["#C1272D", "#006233"],
+  Myanmar: ["#FECB00", "#34B233"],
+  Netherlands: ["#FF7900", "#21468B"],
+  "New Zealand": ["#000000", "#FFFFFF"],
+  Nigeria: ["#008751", "#FFFFFF"],
+  Norway: ["#BA0C2F", "#00205B"],
+  Paraguay: ["#D52B1E", "#0038A8"],
+  Peru: ["#D91023", "#FFFFFF"],
+  Poland: ["#FFFFFF", "#DC143C"],
+  Portugal: ["#046A38", "#DA020E"],
+  Qatar: ["#8D1B3D", "#FFFFFF"],
+  "Saudi Arabia": ["#006C35", "#FFFFFF"],
+  Senegal: ["#00853F", "#FDEF42"],
+  Serbia: ["#C6363C", "#0C4076"],
+  "South Korea": ["#CD2E3A", "#0047A0"],
+  Spain: ["#C60B1E", "#FFC400"],
+  Switzerland: ["#FF0000", "#FFFFFF"],
+  Tunisia: ["#E70013", "#FFFFFF"],
+  "United States": ["#3C3B6E", "#B22234"],
+  Uruguay: ["#5C88DA", "#FFFFFF"],
+  Vietnam: ["#DA251D", "#FFFF00"],
+  Wales: ["#C8102E", "#00B140"],
+};
+
+const TEAM_COLOR_FALLBACK: TeamColorStops = ["#2a332c", "#2a332c"];
+
+export function teamColors(participant: string): TeamColorStops {
+  return TEAM_COLORS[participant] ?? TEAM_COLOR_FALLBACK;
+}
+
+const STALE_FEED_MS = 90 * 1000;
+
+// STALE badge heuristic per the Task 11 brief: `feedUp === false ||
+// Date.now() - lastPacket > 90s`. The brief's "lastPacket" reads as the
+// hub's global `Hub.lastPacketTs` (src/server/feedhub.ts), but that field
+// is never put on the wire — none of /api/stream's snapshot/score/price/feed
+// SSE frames carry it, so nothing in the browser can reach it. The signal
+// that *is* shipped to the client and is scoped to this exact fixture is
+// `LiveScore.recvTs` (stamped `Date.now()` at ingest for every scores
+// packet — see feedhub.ts's `ingestScores`), reaching the browser via the
+// SSE-fed ["scores"] TanStack cache. That's what callers pass in here as
+// `lastPacketTs`. A fixture with no score packet yet (pre-kickoff, or a
+// feed that just hasn't caught up) reads as "not stale" rather than stale —
+// there's no packet yet to judge silence against.
+export function isFeedStale(
+  feedUp: boolean,
+  lastPacketTs: number | undefined,
+  now: number = Date.now()
+): boolean {
+  if (!feedUp) return true;
+  if (lastPacketTs === undefined) return false;
+  return now - lastPacketTs > STALE_FEED_MS;
+}
+
 export function sumPooled(markets: Array<{ poolYes: string; poolNo: string }>): bigint {
   return markets.reduce((sum, m) => sum + BigInt(m.poolYes) + BigInt(m.poolNo), 0n);
 }

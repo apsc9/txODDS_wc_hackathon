@@ -147,3 +147,23 @@ export function predicateHuman(
 export function canNeedZeroStat(m: PredicateFields): boolean {
   return m.comparison !== "GreaterThan";
 }
+
+// Fixture-page group tabs (Task 11 brief: "GOALS/CORNERS/CARDS/RESULT
+// filter by base key"). YELLOWS and REDS share one tab ("CARDS") — the
+// mockup has no separate reds tab and the seeded slate only exercises
+// yellows, so a 5th tab would be speculative. Anything encoded as a
+// team-vs-team subtraction (op "Subtract", e.g. the home-win predicate) is
+// a match-result market regardless of which stat it's built from, so that
+// check runs before the base-label lookup.
+export type MarketGroup = "GOALS" | "CORNERS" | "CARDS" | "RESULT";
+
+export function marketGroup(m: PredicateFields): MarketGroup {
+  if (m.op === "Subtract") return "RESULT";
+
+  const { base } = decodeStatKey(m.statKeyA);
+  const label = getBaseLabel(base);
+  if (label === "GOALS") return "GOALS";
+  if (label === "CORNERS") return "CORNERS";
+  if (label === "YELLOWS" || label === "REDS") return "CARDS";
+  return "RESULT";
+}
