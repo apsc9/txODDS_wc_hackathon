@@ -83,6 +83,23 @@ export function mapBuyError(err: unknown): string {
 }
 
 // ---------------------------------------------------------------------------
+// rollbackMarkets — pure helper for buy()'s catch-block rollback. Replaces
+// only the traded market's entry in the CURRENT cache with its pre-patch
+// snapshot, leaving every other entry as-is (possibly a newer SSE broadcast
+// that landed after the optimistic patch). If the traded pda is no longer
+// present in the current cache, the cache is returned untouched.
+// ---------------------------------------------------------------------------
+export function rollbackMarkets(
+  current: MarketDTO[] | undefined,
+  pda: string,
+  previous: MarketDTO | undefined
+): MarketDTO[] | undefined {
+  if (!current || !previous) return current;
+  if (!current.some((mm) => mm.pda === pda)) return current;
+  return current.map((mm) => (mm.pda === pda ? previous : mm));
+}
+
+// ---------------------------------------------------------------------------
 // useTrade — quote (above) + buy(), the signing/submit path. buy() builds
 // the exact instruction the on-chain program.buy() expects (PDAs per Global
 // Constraints: market ["market", creator, marketId], vault ["vault",
@@ -117,7 +134,9 @@ export function useTrade() {
       // before the tx is even sent — so the row shifts on click, not on
       // confirm (the poller reconciles the real value within ~2s; this
       // patch just anticipates it).
-      const previous = queryClient.getQueryData<MarketDTO[]>(["markets"]);
+      const previous = queryClient
+        .getQueryData<MarketDTO[]>(["markets"])
+        ?.find((mm) => mm.pda === m.pda);
       queryClient.setQueryData<MarketDTO[]>(["markets"], (old) =>
         (old ?? []).map((mm) =>
           mm.pda === m.pda
@@ -167,7 +186,9 @@ export function useTrade() {
         return sig;
       } catch (err) {
         // Roll back the optimistic patch — the trade never landed.
-        queryClient.setQueryData(["markets"], previous);
+        queryClient.setQueryData<MarketDTO[]>(["markets"], (current) =>
+          rollbackMarkets(current, m.pda, previous)
+        );
         throw err;
       }
     },

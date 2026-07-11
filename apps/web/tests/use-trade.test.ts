@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { quote, mapBuyError } from "../src/hooks/use-trade";
+import { quote, mapBuyError, rollbackMarkets } from "../src/hooks/use-trade";
 import type { MarketDTO } from "../src/lib/types";
 
 // Minimal MarketDTO builder — 50/50 seeded pool by default (matches the
@@ -88,5 +88,62 @@ describe("mapBuyError", () => {
     expect(result.startsWith("Trade not placed — ")).toBe(true);
     expect(result).not.toBe("Trade not placed — ");
     expect(result).toContain("Some unrelated RPC hiccup");
+  });
+});
+
+describe("rollbackMarkets (buy()'s catch-block rollback helper)", () => {
+  it("simple no-race case: restores the traded market's snapshot in place", () => {
+    const traded = makeMarket({ pda: "Traded1111111111111111111111111111111111" });
+    const optimistic = { ...traded, poolYes: "55000000", poolNo: "45454545", yesPpm: 550_000 };
+    const current = [optimistic];
+
+    const rolledBack = rollbackMarkets(current, traded.pda, traded);
+
+    expect(rolledBack).toEqual([traded]);
+  });
+
+  it("race: an SSE full-array replace lands between patch and failed confirm — rollback restores only the traded market, keeping the other market's newer broadcast value", () => {
+    const traded = makeMarket({ pda: "Traded1111111111111111111111111111111111" });
+    const other = makeMarket({ pda: "Other11111111111111111111111111111111111" });
+
+    // buy() snapshots the traded market before its optimistic patch.
+    const previous = traded;
+
+    // buy()'s optimistic patch applies to the traded market only.
+    const optimisticTraded = {
+      ...traded,
+      poolYes: "55000000",
+      poolNo: "45454545",
+      yesPpm: 550_000,
+    };
+
+    // An SSE "markets" frame lands before the confirm fails — a full-array
+    // replace from the server, with a newer value for the OTHER market
+    // (e.g. it also just traded) but the same optimistic entry for traded.
+    const sseOther = { ...other, poolYes: "60000000", poolNo: "41666666", yesPpm: 600_000 };
+    const afterSse = [optimisticTraded, sseOther];
+
+    // buy()'s catch block rolls back against whatever is in the cache NOW.
+    const rolledBack = rollbackMarkets(afterSse, traded.pda, previous);
+
+    expect(rolledBack).toEqual([previous, sseOther]);
+    // The other market's newer SSE value must survive untouched.
+    expect(rolledBack!.find((mm) => mm.pda === other.pda)).toEqual(sseOther);
+  });
+
+  it("leaves the cache untouched if the traded pda is no longer present", () => {
+    const traded = makeMarket({ pda: "Traded1111111111111111111111111111111111" });
+    const other = makeMarket({ pda: "Other11111111111111111111111111111111111" });
+    const current = [other];
+
+    const rolledBack = rollbackMarkets(current, traded.pda, traded);
+
+    expect(rolledBack).toBe(current);
+  });
+
+  it("no-ops when there is nothing to roll back to (undefined snapshot or cache)", () => {
+    const traded = makeMarket({ pda: "Traded1111111111111111111111111111111111" });
+    expect(rollbackMarkets(undefined, traded.pda, traded)).toBeUndefined();
+    expect(rollbackMarkets([traded], traded.pda, undefined)).toEqual([traded]);
   });
 });
