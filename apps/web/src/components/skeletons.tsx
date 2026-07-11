@@ -1,5 +1,5 @@
-// Loading placeholders shown by src/app/loading.tsx (App Router's automatic
-// Suspense fallback for src/app/page.tsx) — i.e. before the real,
+// Loading placeholders shown by src/app/(home)/loading.tsx (App Router's
+// automatic Suspense fallback for src/app/(home)/page.tsx) — i.e. before the real,
 // hub-backed match list has rendered. `animate-pulse` is a plain Tailwind
 // utility; globals.css's `prefers-reduced-motion` rule already disables all
 // animations/transitions globally, so this respects that without any extra

@@ -1,4 +1,4 @@
-// Pure helpers shared by the RSC match-list page (src/app/page.tsx) and its
+// Pure helpers shared by the RSC match-list page (src/app/(home)/page.tsx) and its
 // client hydration boundary (src/components/match-list.tsx,
 // src/components/fixture-card.tsx). Kept dependency-free (no "server-only",
 // no React) so both sides — and vitest — can import it directly.
