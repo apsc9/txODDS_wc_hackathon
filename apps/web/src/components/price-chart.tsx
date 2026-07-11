@@ -98,13 +98,37 @@ export function PriceChart({
     [visible]
   );
 
-  const poolPath = toPath(poolSeries, tMin, tMax);
-  const fairPath = toPath(fairSeries, tMin, tMax);
+  // O(n) path-string rebuild over up to ~2000 points — memoized so unrelated
+  // MarketBoard re-renders (tab clicks, side toggles) that don't change the
+  // series or window don't redo it every time.
+  const poolPath = useMemo(() => toPath(poolSeries, tMin, tMax), [poolSeries, tMin, tMax]);
+  const fairPath = useMemo(() => toPath(fairSeries, tMin, tMax), [fairSeries, tMin, tMax]);
 
   const last = visible[visible.length - 1] as PricePoint | undefined;
   const currentCents = last ? ppmToCents(last.poolPpm) : null;
-  const refPoint = last ? (pointAtOrBefore(visible, last.ts - FIVE_MIN_MS) ?? visible[0]) : undefined;
+  // exactRefPoint is undefined when there's under 5 minutes of history in
+  // view (cold buffer / early in the window) — refPoint then falls back to
+  // the earliest visible point instead of a true 5-min-ago sample.
+  const exactRefPoint = last ? pointAtOrBefore(visible, last.ts - FIVE_MIN_MS) : undefined;
+  const refPoint = last ? (exactRefPoint ?? visible[0]) : undefined;
   const refCents = refPoint ? ppmToCents(refPoint.poolPpm) : null;
+  // Human-readable phrase for the aria-label's delta clause. When the
+  // 5-min-ago lookback landed on a real sample, keep the fixed "5 minutes
+  // ago" wording; otherwise describe the actual gap between `last` and the
+  // fallback point so the label doesn't claim a 5-minute baseline it doesn't
+  // have.
+  const refPeriodLabel = (() => {
+    if (!last || !refPoint) return null;
+    if (exactRefPoint) return "5 minutes ago";
+    const elapsedMs = last.ts - refPoint.ts;
+    if (elapsedMs < 1000) return "since start of data";
+    if (elapsedMs < 60_000) {
+      const secs = Math.round(elapsedMs / 1000);
+      return `${secs} second${secs === 1 ? "" : "s"} ago`;
+    }
+    const mins = Math.round(elapsedMs / 60_000);
+    return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  })();
 
   const dotX = last ? xFor(last.ts, tMin, tMax) : 0;
   const dotY = currentCents !== null ? yFor(currentCents) : 0;
@@ -118,7 +142,9 @@ export function PriceChart({
   const ariaLabel =
     currentCents !== null
       ? `Price chart for ${title}: currently ${currentCents}¢${
-          refCents !== null ? `, ${deltaLabel(currentCents, refCents)}¢ versus 5 minutes ago` : ""
+          refCents !== null && refPeriodLabel
+            ? `, ${deltaLabel(currentCents, refCents)}¢ versus ${refPeriodLabel}`
+            : ""
         }, showing the ${activeWindow} window.`
       : `Price chart for ${title}: no trading history yet.`;
 
