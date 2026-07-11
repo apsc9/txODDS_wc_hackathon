@@ -8,6 +8,8 @@ import { formatPooled, isFeedStale, sumPooled } from "@/lib/match-list";
 import { canNeedZeroStat, marketGroup, predicateHuman, predicateMono, type MarketGroup } from "@/lib/statkeys";
 import { ppmToCents } from "@/lib/fpmm";
 import { Scorebug } from "@/components/scorebug";
+import { TradeSlip } from "@/components/trade-slip";
+import type { Side } from "@/hooks/use-trade";
 
 // ---------------------------------------------------------------------------
 // MarketRow — one v4-style market row (open or settled). Purely
@@ -165,12 +167,13 @@ export function MarketBoard({
   // Selection defaults to the deepest-pool market at mount and is otherwise
   // fully user-driven — deliberately not re-derived on every `markets`
   // update (a live pool shift shouldn't yank the user's current selection
-  // out from under them). Drives Task 12/13's rail + chart; the rail is a
-  // placeholder this task, so nothing downstream reads this yet beyond the
-  // row highlight itself.
+  // out from under them). Drives the trade slip in the rail below: `side`
+  // is preset by a row's YES/NO chip click (see `handleSelect`) and
+  // otherwise left as the user last set it.
   const [selected, setSelected] = useState<MarketDTO | undefined>(() =>
     deepestPool(initial.markets)
   );
+  const [side, setSide] = useState<Side>("YES");
   const [activeGroup, setActiveGroup] = useState<MarketGroup>(() => {
     const deepest = deepestPool(initial.markets);
     return deepest ? marketGroup(deepest) : "GOALS";
@@ -185,59 +188,77 @@ export function MarketBoard({
     return map;
   }, [markets]);
 
-  function handleSelect(m: MarketDTO, _side?: "YES" | "NO") {
-    // `_side` presets the buy-slip side once Task 12/13 wires up the rail —
-    // not consumed yet since the rail is a placeholder this task.
+  function handleSelect(m: MarketDTO, presetSide?: "YES" | "NO") {
     setSelected(m);
+    if (presetSide) setSide(presetSide);
   }
 
   const visible = grouped.get(activeGroup) ?? [];
 
+  // The trade slip needs the *live* market object (pools shift optimistically
+  // on buy, then again when the poller reconciles) — `selected` only tracks
+  // which pda is picked, so re-look it up in the live `markets` list every
+  // render rather than trading against a stale snapshot.
+  const selectedLive = selected ? (markets.find((m) => m.pda === selected.pda) ?? selected) : undefined;
+
   return (
-    <div className="flex flex-col gap-5">
-      <Scorebug f={initial.fixture} score={score} pooled={pooled} feedUp={feedUp} />
+    <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[1fr_320px]">
+      <div className="flex flex-col gap-5">
+        <Scorebug f={initial.fixture} score={score} pooled={pooled} feedUp={feedUp} />
 
-      <div className="flex items-center gap-5 border-b border-[var(--line)] pb-2.5">
-        {GROUPS.map((g) => (
+        <div className="flex items-center gap-5 border-b border-[var(--line)] pb-2.5">
+          {GROUPS.map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setActiveGroup(g)}
+              className={
+                g === activeGroup
+                  ? "font-display -mb-[11px] border-b-2 border-[var(--gold)] pb-2.5 text-sm font-bold tracking-wide text-[var(--chalk)]"
+                  : "font-display text-sm font-semibold tracking-wide text-[var(--t3)] transition-colors hover:text-[var(--t2)]"
+              }
+            >
+              {g}
+            </button>
+          ))}
           <button
-            key={g}
             type="button"
-            onClick={() => setActiveGroup(g)}
-            className={
-              g === activeGroup
-                ? "font-display -mb-[11px] border-b-2 border-[var(--gold)] pb-2.5 text-sm font-bold tracking-wide text-[var(--chalk)]"
-                : "font-display text-sm font-semibold tracking-wide text-[var(--t3)] transition-colors hover:text-[var(--t2)]"
-            }
+            disabled
+            className="font-display ml-auto cursor-default text-sm font-semibold tracking-wide text-[var(--gold)] opacity-70"
           >
-            {g}
+            + CREATE MARKET
           </button>
-        ))}
-        <button
-          type="button"
-          disabled
-          className="font-display ml-auto cursor-default text-sm font-semibold tracking-wide text-[var(--gold)] opacity-70"
-        >
-          + CREATE MARKET
-        </button>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {visible.length === 0 ? (
+            <p className="text-sm text-[var(--t3)]">No markets in this group yet.</p>
+          ) : (
+            visible.map((m) => (
+              <MarketRow
+                key={m.pda}
+                m={m}
+                selected={selected?.pda === m.pda}
+                onSelect={handleSelect}
+                t1={initial.fixture.Participant1}
+                t2={initial.fixture.Participant2}
+                stale={stale}
+              />
+            ))
+          )}
+        </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {visible.length === 0 ? (
-          <p className="text-sm text-[var(--t3)]">No markets in this group yet.</p>
+      <aside className="flex flex-col gap-4 md:sticky md:top-[60px]">
+        {selectedLive ? (
+          <TradeSlip m={selectedLive} side={side} setSide={setSide} />
         ) : (
-          visible.map((m) => (
-            <MarketRow
-              key={m.pda}
-              m={m}
-              selected={selected?.pda === m.pda}
-              onSelect={handleSelect}
-              t1={initial.fixture.Participant1}
-              t2={initial.fixture.Participant2}
-              stale={stale}
-            />
-          ))
+          <div className="border border-[var(--line)] bg-[var(--surface)] p-4">
+            <h2 className="label mb-2">TRADE</h2>
+            <p className="text-xs text-[var(--t4)]">Select a market to trade.</p>
+          </div>
         )}
-      </div>
+      </aside>
     </div>
   );
 }

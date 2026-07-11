@@ -26,20 +26,15 @@ export default async function FixturePage({
   const scores: Record<number, LiveScore> = score ? { [fixtureId]: score } : {};
   const markets = Array.from(hub.marketCache.values()).filter((m) => m.fixtureId === fixtureId);
 
+  // MarketBoard owns the two-column grid itself (left: scorebug + market
+  // rows, right: sticky rail) since the rail's trade slip needs the client
+  // `selected`/`side` state that lives inside it — see
+  // src/components/market-row.tsx.
   return (
-    <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[1fr_320px]">
-      <MarketBoard
-        fixtureId={fixtureId}
-        initialFeedUp={hub.feedUp}
-        initial={{ fixture, scores, markets }}
-      />
-
-      {/* Rail placeholder — buy slip / more-fixtures / positions land in a
-          later task (Task 12/13 per the brief). */}
-      <aside className="border border-[var(--line)] bg-[var(--surface)] p-4">
-        <h2 className="label mb-2">TRADE</h2>
-        <p className="text-xs text-[var(--t4)]">Buy slip coming soon.</p>
-      </aside>
-    </div>
+    <MarketBoard
+      fixtureId={fixtureId}
+      initialFeedUp={hub.feedUp}
+      initial={{ fixture, scores, markets }}
+    />
   );
 }
