@@ -63,3 +63,9 @@ export type PricePoint = {
   poolPpm: number;
   fairPpm: number | null;
 };
+
+export type GoalEvent = {
+  ts: number;
+  clockSeconds: number | null;
+  team: 1 | 2;
+};

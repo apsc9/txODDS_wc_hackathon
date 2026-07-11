@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useMemo, useState, type KeyboardEvent } from "react";
-import type { Fixture, LiveScore, MarketDTO } from "@/lib/types";
+import type { Fixture, GoalEvent, LiveScore, MarketDTO, PricePoint } from "@/lib/types";
 import { useFeedUp, useMarkets, useScores } from "@/hooks/use-markets";
-import { formatPooled, isFeedStale, sumPooled } from "@/lib/match-list";
+import { deepestPool, formatPooled, isFeedStale, sumPooled } from "@/lib/match-list";
 import { canNeedZeroStat, marketGroup, predicateHuman, predicateMono, type MarketGroup } from "@/lib/statkeys";
 import { ppmToCents } from "@/lib/fpmm";
 import { Scorebug } from "@/components/scorebug";
+import { PriceChart } from "@/components/price-chart";
 import { TradeSlip } from "@/components/trade-slip";
 import type { Side } from "@/hooks/use-trade";
 
@@ -130,22 +131,17 @@ export type MarketBoardInitial = {
   fixture: Fixture;
   scores: Record<number, LiveScore>;
   markets: MarketDTO[];
+  // RSC-read (no HTTP round trip — same posture as fixture/scores/markets
+  // above) history + goals for whichever market `deepestPool(markets)`
+  // picks as the default selection, so that market's chart paints with real
+  // data on first server-rendered paint. Only ever valid for that one pda —
+  // see `initialSelectedPda` below and src/hooks/use-history.ts's doc
+  // comment on why passing it for a different pda would be wrong.
+  history: PricePoint[];
+  goals: GoalEvent[];
 };
 
 const GROUPS: MarketGroup[] = ["GOALS", "CORNERS", "CARDS", "RESULT"];
-
-function deepestPool(markets: MarketDTO[]): MarketDTO | undefined {
-  let best: MarketDTO | undefined;
-  let bestPool = -1n;
-  for (const m of markets) {
-    const pool = BigInt(m.poolYes) + BigInt(m.poolNo);
-    if (pool > bestPool) {
-      bestPool = pool;
-      best = m;
-    }
-  }
-  return best;
-}
 
 export function MarketBoard({
   fixtureId,
@@ -201,10 +197,29 @@ export function MarketBoard({
   // render rather than trading against a stale snapshot.
   const selectedLive = selected ? (markets.find((m) => m.pda === selected.pda) ?? selected) : undefined;
 
+  // `initial.history`/`initial.goals` were only ever fetched (server-side,
+  // by page.tsx) for this exact pda — the deepest-pool market at RSC render
+  // time. PriceChart must not receive them for any other selection (see
+  // src/hooks/use-history.ts), so this is re-derived from the same pure
+  // `deepestPool` rather than trusted to stay in sync with `selected`.
+  const initialSelectedPda = deepestPool(initial.markets)?.pda;
+
   return (
     <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[1fr_320px]">
       <div className="flex flex-col gap-5">
         <Scorebug f={initial.fixture} score={score} pooled={pooled} feedUp={feedUp} />
+
+        {selectedLive && (
+          <PriceChart
+            m={selectedLive}
+            t1={initial.fixture.Participant1}
+            t2={initial.fixture.Participant2}
+            matchStartMs={initial.fixture.StartTime}
+            liveScore={score}
+            initialHistory={selectedLive.pda === initialSelectedPda ? initial.history : undefined}
+            initialGoals={selectedLive.pda === initialSelectedPda ? initial.goals : undefined}
+          />
+        )}
 
         <div className="flex items-center gap-5 border-b border-[var(--line)] pb-2.5">
           {GROUPS.map((g) => (

@@ -211,6 +211,30 @@ export function sumPooled(markets: Array<{ poolYes: string; poolNo: string }>): 
   return markets.reduce((sum, m) => sum + BigInt(m.poolYes) + BigInt(m.poolNo), 0n);
 }
 
+// Picks the market with the largest pool (poolYes + poolNo) — the default
+// selection both MarketBoard (src/components/market-row.tsx, a "use client"
+// module) and the fixture page's RSC (src/app/fixture/[fixtureId]/page.tsx,
+// a Server Component) need to agree on: the RSC seeds PriceChart's initial
+// history/goals for whichever pda this picks, and MarketBoard's `selected`
+// state defaults to the same pick client-side. Kept here (no "use client",
+// no React) rather than in market-row.tsx specifically so both sides can
+// import the exact same function — Next.js Server Components cannot call a
+// plain function exported from a "use client" module, even a non-JSX one.
+export function deepestPool<M extends { poolYes: string; poolNo: string }>(
+  markets: M[]
+): M | undefined {
+  let best: M | undefined;
+  let bestPool = -1n;
+  for (const m of markets) {
+    const pool = BigInt(m.poolYes) + BigInt(m.poolNo);
+    if (pool > bestPool) {
+      bestPool = pool;
+      best = m;
+    }
+  }
+  return best;
+}
+
 // Matches src/lib/fpmm.ts's ppm-scale base units (1_000_000 = 1 display
 // unit) — same 6-decimal convention as the stake mint (see Task 10 brief:
 // `seed_liquidity = 50_000_000` = 50 tokens).

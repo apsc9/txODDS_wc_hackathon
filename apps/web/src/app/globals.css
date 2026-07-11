@@ -73,6 +73,14 @@ body {
   }
 }
 
+/* PriceChart's current-price dot (Task 13): eases to its new cx/cy on each
+   price tick. The `prefers-reduced-motion: reduce` rule above already
+   `!important`-zeroes `transition` on every element, so this one class is
+   all that's needed to satisfy "no transition on dot" for that setting. */
+.chart-dot {
+  transition: cx 300ms ease, cy 300ms ease;
+}
+
 /* Wallet adapter theme overrides (Task 8). WalletMultiButton's default
    styles (imported in providers.tsx) ship dark-purple Solana branding;
    these rules re-skin the button + its connected dropdown to the FullTime
