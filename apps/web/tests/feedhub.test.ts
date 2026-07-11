@@ -9,6 +9,12 @@ import { encodeStatKey, BASE } from "../src/lib/statkeys";
 const REAL_OVERUNDER_ODDS_LINE =
   '{"FixtureId":18202701,"MessageId":"1836733400:00003:000105-10021-stab","Ts":1783435234232,"Bookmaker":"TXLineStablePriceDemargined","BookmakerId":10021,"SuperOddsType":"OVERUNDER_PARTICIPANT_GOALS","GameState":null,"InRunning":false,"MarketParameters":"line=2.5","MarketPeriod":null,"PriceNames":["over","under"],"Prices":[2082,1924],"Pct":["48.031","51.975"]}';
 
+// Real recorded packet: data/recordings/devnet-odds-2026-07-07.jsonl, first
+// 1X2_PARTICIPANT_RESULT line for the same fixture as the OVERUNDER line
+// above — copied verbatim from the JSONL row's "data" field.
+const REAL_1X2_ODDS_LINE =
+  '{"FixtureId":18202701,"MessageId":"1836733399:00003:000006-10021-stab","Ts":1783435233092,"Bookmaker":"TXLineStablePriceDemargined","BookmakerId":10021,"SuperOddsType":"1X2_PARTICIPANT_RESULT","GameState":null,"InRunning":false,"MarketParameters":null,"MarketPeriod":null,"PriceNames":["part1","draw","part2"],"Prices":[1363,5326,12700],"Pct":["73.368","18.776","7.874"]}';
+
 function scoresPacket(fixtureId: number, goals1: number): string {
   return JSON.stringify({
     FixtureId: fixtureId,
@@ -156,6 +162,38 @@ describe("fairPpmFor", () => {
     const malformed = REAL_OVERUNDER_ODDS_LINE.replace('"48.031"', '"not-a-number"');
     ingestOdds(malformed);
     expect(hub.fairPpmFor(totalGoalsMarket)).toBeNull();
+  });
+
+  it("Subtract+GT0 on the goals pair (home-win) prices from 1X2 consensus", () => {
+    ingestOdds(REAL_1X2_ODDS_LINE);
+    const homeWinMarket: MarketDTO = {
+      fixtureId: 18202701,
+      statKeyA: encodeStatKey(0, BASE.GOALS_T1),
+      statKeyB: encodeStatKey(0, BASE.GOALS_T2),
+      op: "Subtract",
+      comparison: "GreaterThan",
+      threshold: 0,
+    };
+    // part1 pct "73.368" -> round(73.368 * 10000)
+    expect(hub.fairPpmFor(homeWinMarket)).toBe(733680);
+  });
+
+  it("Subtract+GT0 on a NON-goals pair (e.g. yellows) returns null, not mispriced 1X2 consensus — guards feedhub.ts's Subtract branch the same way its Add branch already guards isGoalsPair", () => {
+    ingestOdds(REAL_1X2_ODDS_LINE);
+    const yellowsDiffMarket: MarketDTO = {
+      fixtureId: 18202701,
+      statKeyA: encodeStatKey(0, BASE.YELLOWS_T1),
+      statKeyB: encodeStatKey(0, BASE.YELLOWS_T2),
+      op: "Subtract",
+      comparison: "GreaterThan",
+      threshold: 0,
+    };
+    // Before the guard, this fell straight into the 1X2 key lookup (no
+    // stat-pair check at all on the Subtract branch) and would have
+    // returned 733680 — the same home-win consensus value asserted above —
+    // for a market that has nothing to do with match result. That's the
+    // discriminating behavior this test pins to null.
+    expect(hub.fairPpmFor(yellowsDiffMarket)).toBeNull();
   });
 
   it("returns null for predicates it doesn't understand", () => {

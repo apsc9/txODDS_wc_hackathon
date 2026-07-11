@@ -62,6 +62,10 @@ describe("toMarketDTO", () => {
       // impliedProbPpm(poolYes, poolNo) = poolNo * 1e6 / (poolYes+poolNo)
       //                                  = 1_000_000 * 1e6 / 4_000_000 = 250_000
       yesPpm: 250_000,
+      // toMarketDTO is a pure account decode — consensus fair is filled in
+      // by chain.ts's poll() afterward, not here (see fairPpm's doc comment
+      // in lib/types.ts).
+      fairPpm: null,
     });
   });
 

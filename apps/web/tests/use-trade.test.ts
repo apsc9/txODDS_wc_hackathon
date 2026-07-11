@@ -20,6 +20,7 @@ function makeMarket(overrides: Partial<MarketDTO> = {}): MarketDTO {
     voidAfterTs: 0,
     status: "Open",
     yesPpm: 500_000,
+    fairPpm: null,
     statKeyA: 1,
     statKeyB: null,
     op: null,

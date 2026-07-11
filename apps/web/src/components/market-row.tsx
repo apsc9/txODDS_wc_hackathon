@@ -67,7 +67,14 @@ export function MarketRow({ m, selected, onSelect, t1, t2, stale = false }: Mark
   const pool = BigInt(m.poolYes) + BigInt(m.poolNo);
   const yesCents = ppmToCents(m.yesPpm);
   const noCents = 100 - yesCents;
-  const fair = (m.yesPpm / 1_000_000).toFixed(2);
+  // TxLINE consensus fair price (not the pool's own implied price — that's
+  // already shown on the YES/NO buttons via yesPpm/noCents). Omitted
+  // entirely when null rather than shown as a dash/placeholder: cards and
+  // corners markets have no consensus mapping in fairPpmFor, so a value
+  // here would be fabricated, not honest UI.
+  const fair = m.fairPpm != null ? (m.fairPpm / 1_000_000).toFixed(2) : null;
+  const subtext =
+    `${predicateMono(m)} · ${formatPooled(pool)} pool` + (fair !== null ? ` · fair ${fair}` : "");
   const zeroStatWarn = canNeedZeroStat(m);
 
   return (
@@ -85,9 +92,7 @@ export function MarketRow({ m, selected, onSelect, t1, t2, stale = false }: Mark
     >
       <div>
         <div className="text-sm text-[var(--chalk)]">{predicateHuman(m, t1, t2)}</div>
-        <div className="font-mono-num mt-1 text-[11px] text-[var(--t3)]">
-          {predicateMono(m)} · {formatPooled(pool)} pool · fair {fair}
-        </div>
+        <div className="font-mono-num mt-1 text-[11px] text-[var(--t3)]">{subtext}</div>
         {zeroStatWarn && (
           <div className="font-mono-num mt-1 text-[10px] text-[var(--t4)]">
             settles via void path on 0 outcome — refund at cost basis

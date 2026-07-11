@@ -153,24 +153,37 @@ function buildHub(): HubBuild {
     emit({ type: "price", marketPda });
   }
 
+  // Shared by both branches below: true iff statKeyA/statKeyB (same period)
+  // are the GOALS_T1/GOALS_T2 pair in either order. Both fairPpmFor branches
+  // only have consensus mappings for goals predicates (over/under total
+  // goals for Add, home-win for Subtract) — any other stat pair (yellows,
+  // corners, reds, ...) must fall through to `return null` rather than be
+  // silently priced off goals-derived consensus.
+  function isGoalsPair(statKeyA: number, statKeyB: number | null): boolean {
+    if (statKeyB === null) return false;
+    const a = decodeStatKey(statKeyA);
+    const b = decodeStatKey(statKeyB);
+    return (
+      a.period === b.period &&
+      ((a.base === BASE.GOALS_T1 && b.base === BASE.GOALS_T2) ||
+        (a.base === BASE.GOALS_T2 && b.base === BASE.GOALS_T1))
+    );
+  }
+
   function fairPpmFor(m: MarketDTO): number | null {
-    if (m.op === "Add" && m.comparison === "GreaterThan" && m.statKeyB !== null) {
-      const a = decodeStatKey(m.statKeyA);
-      const b = decodeStatKey(m.statKeyB);
-      const isGoalsPair =
-        a.period === b.period &&
-        ((a.base === BASE.GOALS_T1 && b.base === BASE.GOALS_T2) ||
-          (a.base === BASE.GOALS_T2 && b.base === BASE.GOALS_T1));
-      if (isGoalsPair) {
-        const key = `${m.fixtureId}:OVERUNDER_PARTICIPANT_GOALS:line=${m.threshold}.5`;
-        const c = consensus.get(key);
-        const pct = c?.pctByName["over"];
-        return Number.isFinite(pct) ? Math.round((pct as number) * 10000) : null;
-      }
-      return null;
+    if (m.op === "Add" && m.comparison === "GreaterThan" && isGoalsPair(m.statKeyA, m.statKeyB)) {
+      const key = `${m.fixtureId}:OVERUNDER_PARTICIPANT_GOALS:line=${m.threshold}.5`;
+      const c = consensus.get(key);
+      const pct = c?.pctByName["over"];
+      return Number.isFinite(pct) ? Math.round((pct as number) * 10000) : null;
     }
 
-    if (m.op === "Subtract" && m.comparison === "GreaterThan" && m.threshold === 0) {
+    if (
+      m.op === "Subtract" &&
+      m.comparison === "GreaterThan" &&
+      m.threshold === 0 &&
+      isGoalsPair(m.statKeyA, m.statKeyB)
+    ) {
       const key = `${m.fixtureId}:1X2_PARTICIPANT_RESULT:`;
       const c = consensus.get(key);
       const pct = c?.pctByName["part1"];

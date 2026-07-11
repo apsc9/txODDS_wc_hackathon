@@ -89,6 +89,11 @@ export function toMarketDTO(pda: string, acct: RawMarketAccount): MarketDTO {
     voidAfterTs: acct.voidAfterTs.toNumber(),
     status: decodeEnum<"Open" | "ResolvedYes" | "ResolvedNo" | "Voided">(acct.status),
     yesPpm: impliedProbPpm(poolYes, poolNo) ?? 0,
+    // Consensus fair price is only ever known at poll time (it depends on
+    // `hub.consensus`, not the on-chain account) — `poll()` below fills this
+    // in for Open markets right after calling this function. Defaulting to
+    // null here keeps toMarketDTO a pure decode of the account.
+    fairPpm: null,
   };
 }
 
@@ -126,6 +131,14 @@ async function poll(program: anchor.Program): Promise<void> {
     const pda = publicKey.toBase58();
     const dto = toMarketDTO(pda, account);
 
+    // Compute consensus fair once per market per tick (fairPpmFor does a
+    // couple of Map lookups, not free) and reuse it for both the cached DTO
+    // (what the UI reads) and this tick's history point, rather than calling
+    // it twice for the same market.
+    if (dto.status === "Open") {
+      dto.fairPpm = hub.fairPpmFor(dto);
+    }
+
     const prev = hub.marketCache.get(pda);
     if (!prev || JSON.stringify(prev) !== JSON.stringify(dto)) {
       hub.marketCache.set(pda, dto);
@@ -136,7 +149,7 @@ async function poll(program: anchor.Program): Promise<void> {
       hub.pushPrice(pda, {
         ts: Date.now(),
         poolPpm: dto.yesPpm,
-        fairPpm: hub.fairPpmFor(dto),
+        fairPpm: dto.fairPpm,
       });
     }
   }

@@ -19,6 +19,13 @@ export type MarketDTO = PredicateFields & {
   voidAfterTs: number;
   status: "Open" | "ResolvedYes" | "ResolvedNo" | "Voided";
   yesPpm: number;
+  // TxLINE consensus-derived fair price in ppm, computed by
+  // server/feedhub.ts's `fairPpmFor` and attached once per poll tick by
+  // server/chain.ts's poller (same value used for that tick's history
+  // point — see chain.ts's `poll()`). null whenever the market's predicate
+  // shape has no consensus mapping (e.g. cards/corners markets) or no
+  // matching odds packet has arrived yet — never a fabricated placeholder.
+  fairPpm: number | null;
 };
 
 export type PositionDTO = {
