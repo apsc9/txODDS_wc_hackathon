@@ -4,8 +4,18 @@ import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { useStream } from "@/hooks/use-stream";
 
 import "@solana/wallet-adapter-react-ui/styles.css";
+
+// Mounted once, inside QueryClientProvider below, so useStream() has access
+// to the same QueryClient it writes SSE updates into. Renders nothing of
+// its own — exists purely to call the hook at the top of the tree, per the
+// brief ("mounts once inside <Providers>").
+function StreamBoot({ children }: { children: ReactNode }) {
+  useStream();
+  return <>{children}</>;
+}
 
 // Matches apps/web/.env.local.example — falls back to the public devnet RPC
 // so local dev works without an .env.local (same convention as the server
@@ -26,7 +36,9 @@ export function Providers({ children }: { children: ReactNode }) {
     <ConnectionProvider endpoint={RPC_ENDPOINT}>
       <WalletProvider wallets={[]} autoConnect>
         <WalletModalProvider>
-          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          <QueryClientProvider client={queryClient}>
+            <StreamBoot>{children}</StreamBoot>
+          </QueryClientProvider>
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
