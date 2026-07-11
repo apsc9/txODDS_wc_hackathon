@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Barlow_Condensed, IBM_Plex_Mono, Archivo } from "next/font/google";
+import { Providers } from "@/components/providers";
 import { SiteNav } from "@/components/site-nav";
 import "./globals.css";
 
@@ -37,13 +38,18 @@ export default function RootLayout({
       className={`${barlowCondensed.variable} ${ibmPlexMono.variable} ${archivo.variable}`}
     >
       <body className="flex flex-col min-h-screen">
-        <SiteNav />
-        <main className="flex-1 px-6 py-8">
-          {children}
-        </main>
-        <footer className="border-t border-[var(--line)] px-6 py-4 text-[var(--t4)] text-xs font-mono-num">
-          devnet only · test tokens · not gambling — a settlement-verification demo
-        </footer>
+        {/* Providers wraps SiteNav too, not just {children}: SiteNav
+            renders <WalletButton/>, which needs the wallet/connection/query
+            context from below. */}
+        <Providers>
+          <SiteNav />
+          <main className="flex-1 px-6 py-8">
+            {children}
+          </main>
+          <footer className="border-t border-[var(--line)] px-6 py-4 text-[var(--t4)] text-xs font-mono-num">
+            devnet only · test tokens · not gambling — a settlement-verification demo
+          </footer>
+        </Providers>
       </body>
     </html>
   );

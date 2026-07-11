@@ -72,3 +72,63 @@ body {
     transition: none !important;
   }
 }
+
+/* Wallet adapter theme overrides (Task 8). WalletMultiButton's default
+   styles (imported in providers.tsx) ship dark-purple Solana branding;
+   these rules re-skin the button + its connected dropdown to the FullTime
+   palette per the approved mockup's connected-wallet pill. Scoped under
+   `.ft-wallet` (see components/wallet-button.tsx) via descendant selectors
+   — NOT a className prop on WalletMultiButton, which the library silently
+   drops (see the comment in wallet-button.tsx) — so the per-wallet buttons
+   inside the "choose a wallet" modal (rendered by WalletModalProvider as a
+   sibling of the whole app tree, positioned fixed over the viewport — not
+   a descendant of `.ft-wallet`) are left at library defaults. */
+
+.ft-wallet .wallet-adapter-button-trigger {
+  height: auto;
+  padding: 5px 12px;
+  border: 1px solid var(--line-hi);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--chalk);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.ft-wallet .wallet-adapter-button-trigger:not([disabled]):hover {
+  background: var(--surface-hi);
+  border-color: var(--gold);
+}
+
+.ft-wallet .wallet-adapter-button-trigger[disabled] {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--t4);
+}
+
+.ft-wallet .wallet-adapter-button-start-icon,
+.ft-wallet .wallet-adapter-button-start-icon img {
+  width: 14px;
+  height: 14px;
+}
+
+.ft-wallet .wallet-adapter-dropdown-list {
+  background: var(--surface-hi);
+  border: 1px solid var(--line-hi);
+  border-radius: 3px;
+  box-shadow: none;
+  font-family: var(--font-body);
+}
+
+.ft-wallet .wallet-adapter-dropdown-list-item {
+  color: var(--t2);
+  font-size: 12px;
+  height: 34px;
+  border-radius: 0;
+}
+
+.ft-wallet .wallet-adapter-dropdown-list-item:not([disabled]):hover {
+  background: var(--line);
+  color: var(--chalk);
+}

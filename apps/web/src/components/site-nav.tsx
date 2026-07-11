@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WalletButton } from "@/components/wallet-button";
 
 export function SiteNav() {
   return (
@@ -30,9 +31,7 @@ export function SiteNav() {
 
         <div className="flex-1" />
 
-        <span className="text-[var(--t4)] text-sm">
-          {/* Wallet button placeholder for future task */}
-        </span>
+        <WalletButton />
       </div>
     </nav>
   );
