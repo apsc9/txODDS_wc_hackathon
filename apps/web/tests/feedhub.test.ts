@@ -1,19 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { hub, ingestOdds, ingestScores, type MarketDTO, type HubEvent } from "../src/server/feedhub";
 import { encodeStatKey, BASE } from "../src/lib/statkeys";
-
-// Real recorded packet: data/recordings/devnet-odds-2026-07-07.jsonl, first
-// OVERUNDER_PARTICIPANT_GOALS line (fixture 18202701, `line=2.5`), copied
-// verbatim from the JSONL row's "data" field — the exact string openStream's
-// onMsg would hand to ingestOdds.
-const REAL_OVERUNDER_ODDS_LINE =
-  '{"FixtureId":18202701,"MessageId":"1836733400:00003:000105-10021-stab","Ts":1783435234232,"Bookmaker":"TXLineStablePriceDemargined","BookmakerId":10021,"SuperOddsType":"OVERUNDER_PARTICIPANT_GOALS","GameState":null,"InRunning":false,"MarketParameters":"line=2.5","MarketPeriod":null,"PriceNames":["over","under"],"Prices":[2082,1924],"Pct":["48.031","51.975"]}';
-
-// Real recorded packet: data/recordings/devnet-odds-2026-07-07.jsonl, first
-// 1X2_PARTICIPANT_RESULT line for the same fixture as the OVERUNDER line
-// above — copied verbatim from the JSONL row's "data" field.
-const REAL_1X2_ODDS_LINE =
-  '{"FixtureId":18202701,"MessageId":"1836733399:00003:000006-10021-stab","Ts":1783435233092,"Bookmaker":"TXLineStablePriceDemargined","BookmakerId":10021,"SuperOddsType":"1X2_PARTICIPANT_RESULT","GameState":null,"InRunning":false,"MarketParameters":null,"MarketPeriod":null,"PriceNames":["part1","draw","part2"],"Prices":[1363,5326,12700],"Pct":["73.368","18.776","7.874"]}';
+// Real recorded odds packets (verbatim from the Jul-7 recording) — shared
+// with chain.test.ts's poll wiring test, see fixtures.ts for provenance.
+import { REAL_OVERUNDER_ODDS_LINE, REAL_1X2_ODDS_LINE } from "./fixtures";
 
 function scoresPacket(fixtureId: number, goals1: number): string {
   return JSON.stringify({
@@ -194,6 +184,24 @@ describe("fairPpmFor", () => {
     // for a market that has nothing to do with match result. That's the
     // discriminating behavior this test pins to null.
     expect(hub.fairPpmFor(yellowsDiffMarket)).toBeNull();
+  });
+
+  it("Subtract+GT0 with the goals pair REVERSED (GOALS_T2 − GOALS_T1: away-win) returns null, not home-win consensus — Subtract is directional, unlike Add", () => {
+    ingestOdds(REAL_1X2_ODDS_LINE);
+    const awayWinMarket: MarketDTO = {
+      fixtureId: 18202701,
+      statKeyA: encodeStatKey(0, BASE.GOALS_T2),
+      statKeyB: encodeStatKey(0, BASE.GOALS_T1),
+      op: "Subtract",
+      comparison: "GreaterThan",
+      threshold: 0,
+    };
+    // `GOALS_T2 − GOALS_T1 > 0` is an AWAY-win predicate. Its real consensus
+    // in this packet is part2 ≈ 7.874%, but an order-blind goals-pair check
+    // prices it from pctByName["part1"] (home win) and returns 733680 —
+    // ~73.4% for a ~7.9% outcome. Conservative posture: reversed order must
+    // fall through to null (no part2 mapping — kept out of scope on purpose).
+    expect(hub.fairPpmFor(awayWinMarket)).toBeNull();
   });
 
   it("returns null for predicates it doesn't understand", () => {

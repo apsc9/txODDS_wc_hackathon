@@ -123,7 +123,11 @@ function getProgram(): anchor.Program {
   return cachedProgram;
 }
 
-async function poll(program: anchor.Program): Promise<void> {
+// Exported for tests (chain.test.ts drives one tick with a stubbed program):
+// pins the fairPpm wiring below — cached DTO and history point both carry
+// the consensus fair — which no amount of toMarketDTO/fairPpmFor unit
+// coverage would catch if this glue layer were dropped.
+export async function poll(program: anchor.Program): Promise<void> {
   const rows = await (program.account as any).market.all();
   let changed = false;
 

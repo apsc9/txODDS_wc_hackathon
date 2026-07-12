@@ -1,7 +1,9 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { BN } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
-import { toMarketDTO, scheduleChainPolling } from "../src/server/chain";
+import { toMarketDTO, scheduleChainPolling, poll } from "../src/server/chain";
+import { hub, ingestOdds } from "../src/server/feedhub";
+import { REAL_1X2_ODDS_LINE } from "./fixtures";
 
 // A hand-built account shaped exactly like what Anchor's BorshAccountsCoder
 // hands back for a `Market` account: pubkeys as `PublicKey`, u64s as `BN`,
@@ -103,6 +105,41 @@ describe("toMarketDTO", () => {
       baseAccount({ poolYes: new BN(0), poolNo: new BN(0) }),
     );
     expect(dto.yesPpm).toBe(0);
+  });
+});
+
+describe("poll", () => {
+  afterEach(() => {
+    hub.consensus.clear();
+    hub.marketCache.clear();
+    hub.history.clear();
+  });
+
+  it("wires hub.fairPpmFor into the cached DTO and this tick's history point for Open markets", async () => {
+    hub.consensus.clear();
+    hub.marketCache.clear();
+    hub.history.clear();
+    ingestOdds(REAL_1X2_ODDS_LINE);
+
+    // One Open home-win market from the seeded goals slate shape:
+    // GOALS_T1 − GOALS_T2 > 0 for the fixture the 1X2 packet covers.
+    // baseAccount already has statKeyA: 1 (GOALS_T1), statKeyB: 2
+    // (GOALS_T2), fixtureId 18202701, comparison GreaterThan, status Open.
+    const account = baseAccount({ op: { subtract: {} }, threshold: 0 });
+    const publicKey = CREATOR;
+    const program = {
+      account: { market: { all: vi.fn().mockResolvedValue([{ publicKey, account }]) } },
+    } as unknown as Parameters<typeof poll>[0];
+
+    await poll(program);
+
+    // toMarketDTO alone leaves fairPpm null (see its test above) — non-null
+    // here proves poll()'s wiring layer ran. part1 "73.368" -> 733680 ppm.
+    const pda = publicKey.toBase58();
+    expect(hub.marketCache.get(pda)?.fairPpm).toBe(733680);
+    const points = hub.history.get(pda);
+    expect(points).toHaveLength(1);
+    expect(points?.[0]?.fairPpm).toBe(733680);
   });
 });
 
