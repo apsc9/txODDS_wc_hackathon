@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFulltimeProgram } from "@/lib/anchor-client";
 import { useMarkets } from "@/hooks/use-markets";
 import { joinPositions, type Ticket } from "@/lib/positions";
-import type { PositionDTO } from "@/lib/types";
+import type { PositionDTO, MarketDTO } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // usePositions — /api/positions?owner=<owner> joined client-side against the
@@ -30,8 +30,8 @@ import type { PositionDTO } from "@/lib/types";
 // useClaim() below explicitly invalidates this query on a successful claim
 // so a just-claimed ticket flips to "Claimed" without waiting on a refocus.
 // ---------------------------------------------------------------------------
-export function usePositions(owner: string | undefined) {
-  const markets = useMarkets();
+export function usePositions(owner: string | undefined, initial: MarketDTO[] = []) {
+  const markets = useMarkets(undefined, initial);
   const { data: positions = [], isLoading, refetch } = useQuery({
     queryKey: ["positions", owner],
     queryFn: async (): Promise<PositionDTO[]> => {
