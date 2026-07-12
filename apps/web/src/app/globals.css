@@ -59,6 +59,24 @@ body {
   background-size: 14px 12px;
 }
 
+/* Mirror of .perf-edge's ::after, at the top instead of the bottom — the
+   receipt page (Task 15) is the first card that needs perforation on both
+   edges (trade-slip/create-market-modal only ever needed the bottom one). */
+.perf-edge-top {
+  position: relative;
+}
+
+.perf-edge-top::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: radial-gradient(circle at 6px 6px, var(--bg) 4px, transparent 4px) repeat-x;
+  background-size: 14px 12px;
+}
+
 :focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;

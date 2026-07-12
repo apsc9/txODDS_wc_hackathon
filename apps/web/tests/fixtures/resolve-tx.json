@@ -1,0 +1,9 @@
+{
+  "_comment": "Real devnet resolve() instruction data, captured Jul 12 2026 from a fresh smoke-devnet.ts run (Task 15 Step 1). Not hand-written — dataBase58 is the raw instruction data field from getTransaction's top-level (non-inner) FullTime-program instruction, base58-encoded exactly as the RPC returns it.",
+  "network": "devnet",
+  "fulltimeProgram": "2MzYe6Zo4AD2fuszYou7CcnVmo7cdq4WjKi8UERL652L",
+  "marketPda": "4EfrfFmMH95bC9ySPKYGd9hh9DdMZBbmFXzXKhWuow2K",
+  "resolveSig": "3BhhqJ8b3Rrnpae25hk7cAKnzE5vZ2CGPPweTkoTwo5UQxkD6wmPfs8ma398veDwC2RwgkRchcDxkVD4Sy2Ne2HK",
+  "fixtureId": 18222446,
+  "dataBase58": "2tmG7W72X3b9HH5tUdyYfb7FMVWhyZMo7j8eVUu8EsV9uoRJyoEdxTuESyhTFaXLHMkAiJCqjgYFGLRBAC8gCfGbX1BWu4bbfXn3VPw8NzgMP5nfNDb1sxbbuW7BRLtsqge4rYHjygNu1M3dK99RjaYxEpgF89iSiXXEkSytLWScdEtRaG4cPM6whgHr7NbQmQj8nWAetWx2UUgNDGXKaJgUYggknaFs6xExep4BwAdK6nCoeprSGohy1qxZ3rr7e2PfXYUyGSf6snRAE6RrRJ2CSkRqjEGZFHzQAXhAyUJZxkrQ7DKhLJzmCJRtjgicXVfzf2fpFWYRCXyS3Fuky7SxjymDNNx5jEPweU6N2cFUt4UMZySmPz2337Q7pNUgTmSR8qdkoktkFFUK13SfvS6iSVwZ95nhDZMgbv5z72Ba5d1957RJ5k4ZmXoGHCeqPUYWmKmdWGtzsUrbppUWXexJe2q8QUau7WGhyv8Yae1NUAqF5v6D5KifMneoQCEvJJi3zEY9sgJyZjYTTsA5ogRAgCkJi8o"
+}

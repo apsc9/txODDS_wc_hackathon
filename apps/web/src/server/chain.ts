@@ -112,8 +112,11 @@ function toPositionDTO(pda: string, acct: RawPositionAccount): PositionDTO {
 // (only `.all()` / `.fetch()` account reads are made), so no real wallet or
 // secret is needed. Built lazily and cached so both the poller and
 // `fetchPositions` share one connection instead of dialing RPC per call.
+// Exported so other server-only modules (server/receipt.ts) reuse the same
+// cached instance instead of constructing their own Keypair+Program per
+// call — the footgun documented in the ledger for this exact function.
 let cachedProgram: anchor.Program | null = null;
-function getProgram(): anchor.Program {
+export function getProgram(): anchor.Program {
   if (!cachedProgram) {
     const connection = new Connection(RPC_URL, "confirmed");
     const wallet = new anchor.Wallet(Keypair.generate());
