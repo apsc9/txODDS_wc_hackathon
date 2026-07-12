@@ -49,7 +49,7 @@ export function useMarkets(fixtureId?: number, initial: MarketDTO[] = []): Marke
 
 // Global feed-health flag, pushed by useStream()'s "snapshot"/"feed" SSE
 // listeners (src/hooks/use-stream.ts). Used by the fixture page's STALE
-// badge (see src/lib/match-list.ts's `isFeedStale`).
+// badge (see src/lib/match-list.ts's `shouldShowStaleBadge`).
 export function useFeedUp(initial: boolean): boolean {
   const { data } = useQuery({
     queryKey: ["feedUp"],

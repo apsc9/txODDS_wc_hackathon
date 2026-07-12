@@ -137,7 +137,11 @@ export function mapCreateError(err: unknown): string {
   const haystack = `${message} ${logs}`;
 
   if (/user rejected|reject(ed)? the request|wallet.*reject/i.test(message)) {
-    return "Cancelled in wallet";
+    // Matches mapBuyError/mapClaimError's "<Action> cancelled in wallet"
+    // phrasing (use-trade.ts, use-positions.ts) — error-copy audit, Task 17:
+    // this previously read just "Cancelled in wallet", the only one of the
+    // three error maps missing the action noun.
+    return "Market creation cancelled in wallet";
   }
   if (/\b0x1\b/.test(haystack) || /insufficient funds/i.test(haystack)) {
     return "Market not created — not enough test USDC in wallet";

@@ -4,6 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { usePositions } from "@/hooks/use-positions";
 import { TicketStub } from "@/components/ticket-stub";
+import { PortfolioSkeleton } from "@/components/skeletons";
 import type { MarketDTO } from "@/lib/types";
 
 export function PortfolioView({ initial }: { initial: MarketDTO[] }) {
@@ -27,7 +28,7 @@ export function PortfolioView({ initial }: { initial: MarketDTO[] }) {
           </button>
         </div>
       ) : isLoading ? (
-        <p className="text-sm text-[var(--t3)]">Loading positions…</p>
+        <PortfolioSkeleton />
       ) : tickets.length === 0 ? (
         <p className="text-sm text-[var(--t3)]">No positions yet — place a trade from a match page.</p>
       ) : (

@@ -195,7 +195,9 @@ describe("datetime-local conversion (local-timezone round trip)", () => {
 
 describe("mapCreateError", () => {
   it("maps wallet rejection verbatim", () => {
-    expect(mapCreateError(new Error("User rejected the request."))).toBe("Cancelled in wallet");
+    expect(mapCreateError(new Error("User rejected the request."))).toBe(
+      "Market creation cancelled in wallet"
+    );
   });
 
   it("maps 0x1 (insufficient funds) to test-USDC copy", () => {

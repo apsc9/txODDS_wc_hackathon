@@ -207,6 +207,29 @@ export function isFeedStale(
   return now - lastPacketTs > STALE_FEED_MS;
 }
 
+// LIVE FINDING (verified against the recorded devnet scores stream, see
+// .superpowers/sdd/progress.md): TxLINE sends *prematch* scores packets too,
+// roughly every ~20min, well before kickoff. Those packets stamp a real
+// `recvTs`, so feeding that straight into isFeedStale's 90s heuristic makes
+// the STALE badge flicker on for fixtures that haven't started — the 90s
+// window is far shorter than the ~20min prematch packet cadence, so it reads
+// as "stale" between every pair of prematch packets.
+//
+// The badge is only meaningful once a match is actually live: an upcoming
+// fixture isn't "stale", it just hasn't kicked off, and a finished fixture's
+// feed going quiet is expected, not a failure. Gating on
+// `classifyFixtureStatus`'s output suppresses the flicker without touching
+// isFeedStale itself (still correct/tested on its own for the live case).
+export function shouldShowStaleBadge(
+  status: MatchStatus,
+  feedUp: boolean,
+  lastPacketTs: number | undefined,
+  now: number = Date.now()
+): boolean {
+  if (status !== "live") return false;
+  return isFeedStale(feedUp, lastPacketTs, now);
+}
+
 export function sumPooled(markets: Array<{ poolYes: string; poolNo: string }>): bigint {
   return markets.reduce((sum, m) => sum + BigInt(m.poolYes) + BigInt(m.poolNo), 0n);
 }

@@ -2,7 +2,7 @@ import "server-only";
 
 import { startChainPoller } from "./chain";
 import { hub } from "./feedhub";
-import { loadTxlineCreds } from "./txline";
+import { loadTxlineCreds, SetupError } from "./txline";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -40,10 +40,30 @@ export function ensureStarted(): void {
   globalThis.__fulltimeBooted = true;
 }
 
-// Shared by every route: turns a thrown Error (notably loadTxlineCreds's
-// remedy-copy errors, but any other unexpected throw too) into a JSON body
-// that carries the real message, rather than a bare "Internal Server Error".
+const GENERIC_MESSAGE: Record<number, string> = {
+  404: "Not found.",
+  500: "Something went wrong on our end. Try again.",
+};
+
+// Shared by every route's catch block. A `SetupError` (./txline.ts's
+// loadTxlineCreds / apiBase) carries actionable, already-scrubbed copy meant
+// for the developer running this locally (env var name + remedy command,
+// never a resolved filesystem path — see SetupError's doc comment) and is
+// forwarded verbatim.
+//
+// Any other error — an unexpected RPC failure, a bad Anchor account fetch,
+// anything not explicitly designed to be client-facing — is logged
+// server-side (so the real cause is still visible in the terminal) and
+// replaced with terse, on-brand generic copy before it reaches the browser.
+// Previously this forwarded every error's raw `.message` verbatim, which for
+// the creds-file-missing case leaked this machine's absolute local file path
+// (username + repo location) into the HTTP response — fixed by scrubbing at
+// the source (SetupError) and generic-izing everything else here.
 export function toErrorResponse(err: unknown, status = 500): Response {
-  const message = err instanceof Error ? err.message : String(err);
+  if (err instanceof SetupError) {
+    return Response.json({ error: err.message }, { status });
+  }
+  console.error("[api] unhandled error:", err);
+  const message = GENERIC_MESSAGE[status] ?? GENERIC_MESSAGE[500];
   return Response.json({ error: message }, { status });
 }

@@ -6,7 +6,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import type { Fixture, GoalEvent, LiveScore, MarketDTO, PricePoint } from "@/lib/types";
 import { useFeedUp, useMarkets, useScores } from "@/hooks/use-markets";
 import { usePositions } from "@/hooks/use-positions";
-import { deepestPool, formatPooled, isFeedStale, sumPooled } from "@/lib/match-list";
+import { classifyFixtureStatus, deepestPool, formatPooled, shouldShowStaleBadge, sumPooled } from "@/lib/match-list";
 import { canNeedZeroStat, marketGroup, predicateHuman, predicateMono, type MarketGroup } from "@/lib/statkeys";
 import { ppmToCents } from "@/lib/fpmm";
 import { Scorebug } from "@/components/scorebug";
@@ -172,7 +172,11 @@ export function MarketBoard({
   );
 
   const score = scores[fixtureId];
-  const stale = isFeedStale(feedUp, score?.recvTs);
+  // Same suppression Scorebug applies (src/components/scorebug.tsx) — a
+  // fixture that hasn't kicked off shouldn't gray out its YES/NO buttons on
+  // a stale prematch packet.
+  const status = classifyFixtureStatus(initial.fixture.StartTime, score, Date.now());
+  const stale = shouldShowStaleBadge(status, feedUp, score?.recvTs);
   const pooled = sumPooled(markets);
 
   // Selection defaults to the deepest-pool market at mount and is otherwise

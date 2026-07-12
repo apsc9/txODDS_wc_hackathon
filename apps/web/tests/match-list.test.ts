@@ -5,6 +5,7 @@ import {
   teamCode,
   teamColors,
   isFeedStale,
+  shouldShowStaleBadge,
   sumPooled,
   formatPooled,
   formatClock,
@@ -95,6 +96,43 @@ describe("isFeedStale", () => {
   it("is stale when feedUp is true but the last packet is older than 90s", () => {
     const now = 1_000_000;
     expect(isFeedStale(true, now - 91_000, now)).toBe(true);
+  });
+});
+
+describe("shouldShowStaleBadge", () => {
+  // LIVE FINDING: TxLINE sends prematch scores packets ~20min apart, so a
+  // fixture that hasn't kicked off yet still has a `recvTs` — feeding that
+  // straight into isFeedStale's 90s heuristic makes the badge flicker on
+  // between those prematch packets, hours before kickoff. Gating on
+  // `status === "live"` (classifyFixtureStatus) suppresses that: only a
+  // fixture that has actually started can ever show STALE.
+  it("suppresses STALE for an upcoming fixture even with an old prematch packet", () => {
+    const now = 1_000_000;
+    // status is "upcoming" whenever startTime is in the future, regardless
+    // of score/recvTs age.
+    expect(shouldShowStaleBadge("upcoming", true, now - 25 * 60 * 1000, now)).toBe(false);
+    expect(shouldShowStaleBadge("upcoming", false, now - 25 * 60 * 1000, now)).toBe(false);
+  });
+
+  it("suppresses STALE for a finished fixture regardless of feed state", () => {
+    const now = 1_000_000;
+    expect(shouldShowStaleBadge("finished", false, now - 25 * 60 * 1000, now)).toBe(false);
+    expect(shouldShowStaleBadge("finished", true, undefined, now)).toBe(false);
+  });
+
+  it("shows STALE for a live fixture whose feed is down", () => {
+    const now = 1_000_000;
+    expect(shouldShowStaleBadge("live", false, now - 5000, now)).toBe(true);
+  });
+
+  it("shows STALE for a live fixture whose last packet is older than 90s", () => {
+    const now = 1_000_000;
+    expect(shouldShowStaleBadge("live", true, now - 91_000, now)).toBe(true);
+  });
+
+  it("does not show STALE for a live fixture with a fresh packet and feed up", () => {
+    const now = 1_000_000;
+    expect(shouldShowStaleBadge("live", true, now - 5000, now)).toBe(false);
   });
 });
 

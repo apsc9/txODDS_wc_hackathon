@@ -5,7 +5,7 @@ import {
   formatClock,
   formatKickoff,
   formatPooled,
-  isFeedStale,
+  shouldShowStaleBadge,
   teamCode,
   teamColors,
 } from "@/lib/match-list";
@@ -24,7 +24,10 @@ type ScorebugProps = {
 // only src/components/market-row.tsx's client `MarketBoard`).
 export function Scorebug({ f, score, pooled, feedUp }: ScorebugProps) {
   const status = classifyFixtureStatus(f.StartTime, score, Date.now());
-  const stale = isFeedStale(feedUp, score?.recvTs);
+  // Suppressed unless the fixture is actually live — see
+  // shouldShowStaleBadge's doc comment in lib/match-list.ts (prematch
+  // packets otherwise flicker this badge on hours before kickoff).
+  const stale = shouldShowStaleBadge(status, feedUp, score?.recvTs);
 
   const goals1 = score?.stats["1"];
   const goals2 = score?.stats["2"];

@@ -6,6 +6,19 @@ import { readSseMessages } from "./sse-parse";
 
 const CREDS_REMEDY = "run: cd packages/ingest && npx tsx src/auth-cli.ts devnet";
 
+// Thrown by loadTxlineCreds for a missing/malformed local creds file — a
+// setup problem the *developer running this locally* needs to see and act
+// on (hence the actionable CREDS_REMEDY copy), as opposed to an unexpected
+// runtime fault. `toErrorResponse` (./boot.ts) checks for this type to
+// decide whether a route's error response may surface its message verbatim
+// or must fall back to generic copy — see that function's doc comment.
+export class SetupError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SetupError";
+  }
+}
+
 export type TxlineCreds = {
   jwt: string;
   apiToken: string;
@@ -20,10 +33,17 @@ export type Fixture = {
   Competition: string;
 };
 
+// Thrown messages here intentionally name `TXLINE_CREDS` (the env var the
+// developer set) rather than its resolved absolute filesystem path — the
+// resolved path was previously interpolated into these messages, which
+// `toErrorResponse` (./boot.ts) forwards verbatim to the HTTP client, i.e.
+// leaking this machine's local directory layout (username, repo location)
+// into a browser response. The resolved path is still logged to the server
+// console below for local debugging; it just never leaves the process.
 export function loadTxlineCreds(): TxlineCreds {
   const credsPath = process.env.TXLINE_CREDS;
   if (!credsPath) {
-    throw new Error(`TXLINE_CREDS is not set. ${CREDS_REMEDY}`);
+    throw new SetupError(`TXLINE_CREDS is not set. ${CREDS_REMEDY}`);
   }
 
   const resolved = path.resolve(process.cwd(), credsPath);
@@ -32,23 +52,21 @@ export function loadTxlineCreds(): TxlineCreds {
   try {
     raw = readFileSync(resolved, "utf8");
   } catch (err) {
-    throw new Error(
-      `Failed to read TxLINE creds at ${resolved}: ${(err as Error).message}. ${CREDS_REMEDY}`
-    );
+    console.error(`[txline] failed to read creds file at ${resolved}:`, err);
+    throw new SetupError(`Failed to read TxLINE creds at "${credsPath}". ${CREDS_REMEDY}`);
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    throw new Error(
-      `Failed to parse TxLINE creds at ${resolved}: ${(err as Error).message}. ${CREDS_REMEDY}`
-    );
+    console.error(`[txline] failed to parse creds file at ${resolved}:`, err);
+    throw new SetupError(`Failed to parse TxLINE creds at "${credsPath}". ${CREDS_REMEDY}`);
   }
 
   const creds = parsed as Partial<TxlineCreds>;
   if (!creds.jwt || !creds.apiToken) {
-    throw new Error(`TxLINE creds at ${resolved} are missing jwt/apiToken. ${CREDS_REMEDY}`);
+    throw new SetupError(`TxLINE creds at "${credsPath}" are missing jwt/apiToken. ${CREDS_REMEDY}`);
   }
 
   return { jwt: creds.jwt, apiToken: creds.apiToken };
@@ -57,7 +75,7 @@ export function loadTxlineCreds(): TxlineCreds {
 function apiBase(): string {
   const base = process.env.TXLINE_API;
   if (!base) {
-    throw new Error("TXLINE_API is not set.");
+    throw new SetupError("TXLINE_API is not set. Copy .env.local.example to .env.local and fill it in.");
   }
   return base;
 }
