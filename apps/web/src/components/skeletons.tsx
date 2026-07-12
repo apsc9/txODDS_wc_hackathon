@@ -78,10 +78,10 @@ function TicketStubSkeleton() {
     >
       <div className="min-w-0 flex-1">
         <div className="h-[11px] w-28 rounded-sm" style={{ background: "#ccc" }} />
-        <div className="mt-2 h-[11px] w-44 rounded-sm" style={{ background: "#ccc" }} />
-        <div className="mt-1.5 h-[10px] w-20 rounded-sm" style={{ background: "#d9d6cc" }} />
+        <div className="mt-1 h-[11px] w-44 rounded-sm" style={{ background: "#ccc" }} />
+        <div className="mt-1 h-[10px] w-20 rounded-sm" style={{ background: "#d9d6cc" }} />
       </div>
-      <div className="h-6 w-20 shrink-0 rounded-sm" style={{ background: "#ccc" }} />
+      <div className="h-5 w-20 shrink-0 rounded-sm" style={{ background: "#ccc" }} />
     </div>
   );
 }

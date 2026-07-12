@@ -220,6 +220,19 @@ export function isFeedStale(
 // feed going quiet is expected, not a failure. Gating on
 // `classifyFixtureStatus`'s output suppresses the flicker without touching
 // isFeedStale itself (still correct/tested on its own for the live case).
+//
+// KNOWN LIMITATION (accepted degradation): TxLINE's GameState field is never
+// a usable finished/live signal (confirmed in .superpowers/sdd/progress.md —
+// it reports "scheduled" for entire matches including mid-match goal events),
+// so `classifyFixtureStatus` treats >20min of score silence as "finished".
+// Consequence: on a total mid-match feed drop, STALE shows from 90s to 20min
+// of silence, then the fixture flips to "finished" and the badge vanishes —
+// misreporting the match as over while it's still live. The no-FT-signal wire
+// anomaly makes this unavoidable: 20min silence is indistinguishable from full
+// time, so the badge must share the classifier's cutoff and disappear after
+// 20min of mid-match silence to avoid false-positives on genuinely finished
+// matches between FT and the 3h cap. Do NOT change runtime behavior — the
+// tradeoff is documented and intentional.
 export function shouldShowStaleBadge(
   status: MatchStatus,
   feedUp: boolean,

@@ -41,8 +41,10 @@ Fill in `.env.local`:
 `NEXT_PUBLIC_FULLTIME_PROGRAM`, bare `ORACLE_PROGRAM`, and `STAKE_MINT_PATH`
 also appear in `.env.local.example` but aren't read by this app — the
 FullTime program id comes from `src/idl/fulltime.json`'s baked-in `address`
-field instead, and the other two are only read by `packages/ingest`'s own
-scripts. Set them anyway if you're running those scripts too.
+field instead. `ORACLE_PROGRAM` and `STAKE_MINT_PATH` are vestigial; they are
+not read via `process.env` anywhere in the repo — `packages/ingest/src/config.ts`
+hardcodes the oracle PublicKey literal, and `seed-markets.ts` hardcodes the
+stake-mint path as a URL constant. Setting them has no effect.
 
 `TXLINE_CREDS`/`TXLINE_API` are server-only (no `NEXT_PUBLIC_` prefix) —
 never bundled to the browser. Everything prefixed `NEXT_PUBLIC_` is public by

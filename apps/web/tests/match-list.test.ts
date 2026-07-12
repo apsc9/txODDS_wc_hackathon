@@ -134,6 +134,32 @@ describe("shouldShowStaleBadge", () => {
     const now = 1_000_000;
     expect(shouldShowStaleBadge("live", true, now - 5000, now)).toBe(false);
   });
+
+  // Regression pin for the STALE/classifier boundary (see doc comment on
+  // shouldShowStaleBadge): 20min silence transitions status from "live" to
+  // "finished", causing the badge to disappear. This documents the current
+  // behavior and the known limitation that on mid-match feed drops, the badge
+  // vanishes after 20min even though the match is still live (no reliable FT
+  // signal on TxLINE makes this unavoidable).
+  it("shows STALE when status is live with silence just under 20min", () => {
+    const now = 1_000_000;
+    const startTime = now - 30 * MIN;
+    const lastPacket = now - 19 * MIN - 59_000; // 1s under 20min threshold
+    const score = { recvTs: lastPacket };
+    const status = classifyFixtureStatus(startTime, score, now);
+    expect(status).toBe("live"); // under 20min so still live
+    expect(shouldShowStaleBadge(status, true, lastPacket, now)).toBe(true); // but packet is >90s old so stale
+  });
+
+  it("hides STALE when silence exceeds 20min and status becomes finished", () => {
+    const now = 1_000_000;
+    const startTime = now - 30 * MIN;
+    const lastPacket = now - 20 * MIN - 1000; // 1s over 20min threshold
+    const score = { recvTs: lastPacket };
+    const status = classifyFixtureStatus(startTime, score, now);
+    expect(status).toBe("finished"); // over 20min so classified as finished
+    expect(shouldShowStaleBadge(status, true, lastPacket, now)).toBe(false); // finished, so badge hidden
+  });
 });
 
 describe("sumPooled / formatPooled", () => {

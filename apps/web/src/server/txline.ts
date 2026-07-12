@@ -66,6 +66,7 @@ export function loadTxlineCreds(): TxlineCreds {
 
   const creds = parsed as Partial<TxlineCreds>;
   if (!creds.jwt || !creds.apiToken) {
+    console.error(`[txline] TxLINE creds at ${resolved} are missing jwt/apiToken`);
     throw new SetupError(`TxLINE creds at "${credsPath}" are missing jwt/apiToken. ${CREDS_REMEDY}`);
   }
 
