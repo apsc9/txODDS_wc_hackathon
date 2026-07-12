@@ -107,6 +107,16 @@ describe("statkeys: canNeedZeroStat", () => {
     };
     expect(canNeedZeroStat(m)).toBe(false);
   });
+  it("canNeedZeroStat true for GreaterThan with threshold 0", () => {
+    const m: PredicateFields = {
+      statKeyA: 1,
+      statKeyB: 2,
+      op: "Subtract",
+      comparison: "GreaterThan",
+      threshold: 0,
+    };
+    expect(canNeedZeroStat(m)).toBe(true);
+  });
   it("canNeedZeroStat true for EqualTo", () => {
     const m: PredicateFields = {
       statKeyA: 1,

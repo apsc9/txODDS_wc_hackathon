@@ -96,11 +96,11 @@ describe("presetPredicate (preset → statKey/predicate encoding, FT-only)", () 
     });
   });
 
-  it("no preset ever needs a zero stat (all GreaterThan — no gold warning)", () => {
+  it("preset goals/corners/yellows don't need zero stat (threshold ≥ 1), but homeWin does (threshold 0)", () => {
     expect(canNeedZeroStat(presetPredicate("goals", 2))).toBe(false);
     expect(canNeedZeroStat(presetPredicate("corners", 9))).toBe(false);
     expect(canNeedZeroStat(presetPredicate("yellows", 3))).toBe(false);
-    expect(canNeedZeroStat(presetPredicate("homeWin", 0))).toBe(false);
+    expect(canNeedZeroStat(presetPredicate("homeWin", 0))).toBe(true);
   });
 });
 

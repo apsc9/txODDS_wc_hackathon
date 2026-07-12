@@ -145,7 +145,7 @@ export function predicateHuman(
 }
 
 export function canNeedZeroStat(m: PredicateFields): boolean {
-  return m.comparison !== "GreaterThan";
+  return m.comparison !== "GreaterThan" || m.threshold < 1;
 }
 
 // Fixture-page group tabs (Task 11 brief: "GOALS/CORNERS/CARDS/RESULT
