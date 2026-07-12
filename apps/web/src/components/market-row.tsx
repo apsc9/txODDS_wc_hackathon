@@ -10,6 +10,7 @@ import { ppmToCents } from "@/lib/fpmm";
 import { Scorebug } from "@/components/scorebug";
 import { PriceChart } from "@/components/price-chart";
 import { TradeSlip } from "@/components/trade-slip";
+import { CreateMarketModal } from "@/components/create-market-modal";
 import type { Side } from "@/hooks/use-trade";
 
 // ---------------------------------------------------------------------------
@@ -175,6 +176,7 @@ export function MarketBoard({
     deepestPool(initial.markets)
   );
   const [side, setSide] = useState<Side>("YES");
+  const [createOpen, setCreateOpen] = useState(false);
   const [activeGroup, setActiveGroup] = useState<MarketGroup>(() => {
     const deepest = deepestPool(initial.markets);
     return deepest ? marketGroup(deepest) : "GOALS";
@@ -243,8 +245,8 @@ export function MarketBoard({
           ))}
           <button
             type="button"
-            disabled
-            className="font-display ml-auto cursor-default text-sm font-semibold tracking-wide text-[var(--gold)] opacity-70"
+            onClick={() => setCreateOpen(true)}
+            className="font-display ml-auto text-sm font-semibold tracking-wide text-[var(--gold)] transition-opacity hover:opacity-80"
           >
             + CREATE MARKET
           </button>
@@ -279,6 +281,14 @@ export function MarketBoard({
           </div>
         )}
       </aside>
+
+      {createOpen && (
+        <CreateMarketModal
+          f={initial.fixture}
+          markets={markets}
+          onClose={() => setCreateOpen(false)}
+        />
+      )}
     </div>
   );
 }
