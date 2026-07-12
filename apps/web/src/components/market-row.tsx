@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { useMemo, useState, type KeyboardEvent } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import type { Fixture, GoalEvent, LiveScore, MarketDTO, PricePoint } from "@/lib/types";
 import { useFeedUp, useMarkets, useScores } from "@/hooks/use-markets";
+import { usePositions } from "@/hooks/use-positions";
 import { deepestPool, formatPooled, isFeedStale, sumPooled } from "@/lib/match-list";
 import { canNeedZeroStat, marketGroup, predicateHuman, predicateMono, type MarketGroup } from "@/lib/statkeys";
 import { ppmToCents } from "@/lib/fpmm";
 import { Scorebug } from "@/components/scorebug";
 import { PriceChart } from "@/components/price-chart";
 import { TradeSlip } from "@/components/trade-slip";
+import { TicketStub } from "@/components/ticket-stub";
 import { CreateMarketModal } from "@/components/create-market-modal";
 import type { Side } from "@/hooks/use-trade";
 
@@ -161,6 +164,12 @@ export function MarketBoard({
   const { data: scores } = useScores(initial.scores);
   const markets = useMarkets(fixtureId, initial.markets);
   const feedUp = useFeedUp(initialFeedUp);
+  const { publicKey } = useWallet();
+  const { tickets } = usePositions(publicKey?.toBase58());
+  const fixtureTickets = useMemo(
+    () => tickets.filter((t) => t.market.fixtureId === fixtureId),
+    [tickets, fixtureId]
+  );
 
   const score = scores[fixtureId];
   const stale = isFeedStale(feedUp, score?.recvTs);
@@ -278,6 +287,23 @@ export function MarketBoard({
           <div className="border border-[var(--line)] bg-[var(--surface)] p-4">
             <h2 className="label mb-2">TRADE</h2>
             <p className="text-xs text-[var(--t4)]">Select a market to trade.</p>
+          </div>
+        )}
+
+        {fixtureTickets.length > 0 && (
+          <div
+            className="perf-edge-top relative p-3.5"
+            style={{ background: "var(--chalk-dim)", color: "#1a1d1a" }}
+          >
+            <div
+              className="font-display mb-1.5 text-[11px] font-bold tracking-[0.14em]"
+              style={{ color: "#555" }}
+            >
+              YOUR TICKETS · {fixtureTickets.length}
+            </div>
+            {fixtureTickets.map((t) => (
+              <TicketStub key={t.position.pda} p={t.position} m={t.market} compact />
+            ))}
           </div>
         )}
       </aside>
