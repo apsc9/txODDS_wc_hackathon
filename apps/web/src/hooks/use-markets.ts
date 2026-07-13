@@ -32,11 +32,16 @@ export function useScores(initial: Record<number, LiveScore>) {
   });
 }
 
-// `initial` only needs to be supplied by whichever caller first hydrates the
-// page (the homepage's <MatchList>) — the query key ["markets"] is global,
-// not per-fixture, so a later caller (e.g. a fixture detail page) can call
-// `useMarkets(fixtureId)` with no `initial` and just read/filter whatever is
-// already cached; `initialData` is a no-op once the cache entry exists.
+// The query key ["markets"] is GLOBAL, not per-fixture — so any `initial`
+// passed here must always be the FULL market cache, never a fixture-filtered
+// subset. `initialData` is a no-op once the cache entry exists, which means
+// whichever page hydrates first wins: if a hard-loaded fixture page seeded
+// only its own markets, a later client-nav to `/` or `/portfolio` would find
+// the entry already present, their full-cache initialData would be ignored,
+// and every other fixture would render 0 markets (and portfolio would drop
+// tickets) until the next markets-changed SSE diff. All seeders (home,
+// portfolio, fixture RSCs) therefore pass Array.from(hub.marketCache.values())
+// wholesale; fixture-scoped display comes from the `fixtureId` filter below.
 export function useMarkets(fixtureId?: number, initial: MarketDTO[] = []): MarketDTO[] {
   const { data } = useQuery({
     queryKey: ["markets"],

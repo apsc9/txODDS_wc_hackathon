@@ -4,7 +4,15 @@ import { useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type { LiveScore, MarketDTO, PricePoint } from "@/lib/types";
 
-type SnapshotPayload = { scores: Record<number, LiveScore>; feedUp: boolean };
+// `markets` is optional for backward compatibility with the pre-Task-9-fix
+// frame shape (scores/feedUp only) — when present, it's the authoritative
+// full market cache and replaces the ["markets"] cache wholesale, healing
+// any staleness accumulated while an EventSource was disconnected.
+type SnapshotPayload = {
+  scores: Record<number, LiveScore>;
+  feedUp: boolean;
+  markets?: MarketDTO[];
+};
 type MarketsPayload = { markets: MarketDTO[] };
 type FeedPayload = { up: boolean };
 // src/app/api/stream/route.ts's `freshPayload` for a "price" event: pda plus
@@ -31,14 +39,19 @@ function parse<T>(evt: Event): T | null {
 // this safe under React StrictMode's dev-mode double-invoke of effects.
 let source: EventSource | null = null;
 
-function connect(queryClient: QueryClient): EventSource {
-  const es = new EventSource("/api/stream");
-
+// The listener wiring is split out from connect() (which needs a real
+// browser EventSource) so vitest can drive these handlers against a fake
+// event target + a headless QueryClient — see tests/use-stream.test.ts.
+export function attachStreamListeners(
+  es: Pick<EventSource, "addEventListener">,
+  queryClient: QueryClient,
+): void {
   es.addEventListener("snapshot", (evt) => {
     const data = parse<SnapshotPayload>(evt);
     if (!data) return;
     queryClient.setQueryData(["scores"], data.scores);
     queryClient.setQueryData(["feedUp"], data.feedUp);
+    if (data.markets) queryClient.setQueryData(["markets"], data.markets);
   });
 
   es.addEventListener("score", (evt) => {
@@ -59,6 +72,16 @@ function connect(queryClient: QueryClient): EventSource {
   es.addEventListener("price", (evt) => {
     const data = parse<PricePayload>(evt);
     if (!data || data.ts === undefined || data.poolPpm === undefined) return;
+    // Append-only, never create: the server broadcasts an undiffed `price`
+    // frame for every Open market each poll tick, so appending here without
+    // this guard would materialize a ["history", pda] entry for every open
+    // market within one tick of connect. useHistory's later mount for that
+    // pda would then find a fresh (staleTime: Infinity) entry already in
+    // place — its /api/history queryFn never runs, and the chart shows only
+    // the points since tab-open instead of the server's full ring buffer.
+    // Only pdas whose backlog useHistory (or the RSC seed) has already
+    // loaded may accumulate live ticks.
+    if (queryClient.getQueryData(["history", data.pda]) === undefined) return;
     const point: PricePoint = { ts: data.ts, poolPpm: data.poolPpm, fairPpm: data.fairPpm ?? null };
     queryClient.setQueryData<PricePoint[]>(["history", data.pda], (old) => [...(old ?? []), point]);
   });
@@ -68,7 +91,11 @@ function connect(queryClient: QueryClient): EventSource {
     if (!data) return;
     queryClient.setQueryData(["feedUp"], data.up);
   });
+}
 
+function connect(queryClient: QueryClient): EventSource {
+  const es = new EventSource("/api/stream");
+  attachStreamListeners(es, queryClient);
   return es;
 }
 

@@ -8,7 +8,7 @@ import { REAL_1X2_ODDS_LINE } from "./fixtures";
 // A hand-built account shaped exactly like what Anchor's BorshAccountsCoder
 // hands back for a `Market` account: pubkeys as `PublicKey`, u64s as `BN`,
 // Rust enums as single-key objects keyed by the camelCase variant name
-// (`{ greaterThan: {} }`, `{ open: {} }`) — see target/idl/fulltime.json.
+// (`{ greaterThan: {} }`, `{ open: {} }`) — see src/idl/fulltime.json.
 const CREATOR = new PublicKey("11111111111111111111111111111111");
 const MINT = new PublicKey("So11111111111111111111111111111111111111112");
 const ORACLE_PROGRAM = new PublicKey("6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J");

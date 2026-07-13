@@ -2,7 +2,7 @@ import "server-only";
 
 import { startChainPoller } from "./chain";
 import { hub } from "./feedhub";
-import { loadTxlineCreds, SetupError } from "./txline";
+import { apiBase, loadTxlineCreds, SetupError } from "./txline";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -19,11 +19,13 @@ declare global {
 // call (a bad snapshot fetch must not stop the live odds/scores streams from
 // starting) and `openStream`'s reconnect loop likewise never throws out to
 // callers — so neither call is a reliable place to catch a stale/missing
-// TxLINE creds file. `loadTxlineCreds()` is called here first, synchronously,
-// purely to fail fast with Task 4's remedy copy attached to the thrown
-// error. It intentionally runs *before* the guard flag is set, so a request
-// made after the creds file is fixed (e.g. by re-running the auth CLI) can
-// retry the whole boot sequence instead of being stuck failed forever.
+// TxLINE creds file OR a missing TXLINE_API. `loadTxlineCreds()` and
+// `apiBase()` are called here first, synchronously, purely to fail fast
+// with actionable remedy copy attached to the thrown SetupError instead of
+// a silently-dead feed. They intentionally run *before* the guard flag is
+// set, so a request made after the setup is fixed (e.g. by re-running the
+// auth CLI, or filling in .env.local) can retry the whole boot sequence
+// instead of being stuck failed forever.
 //
 // The flag is likewise set *after* `hub.start()` and `startChainPoller()`
 // both return, not before. `startChainPoller()` can throw synchronously
@@ -35,6 +37,7 @@ declare global {
 export function ensureStarted(): void {
   if (globalThis.__fulltimeBooted) return;
   loadTxlineCreds();
+  apiBase();
   hub.start();
   startChainPoller();
   globalThis.__fulltimeBooted = true;
@@ -43,6 +46,7 @@ export function ensureStarted(): void {
 const GENERIC_MESSAGE: Record<number, string> = {
   404: "Not found.",
   500: "Something went wrong on our end. Try again.",
+  503: "Upstream RPC unavailable. Try again shortly.",
 };
 
 // Shared by every route's catch block. A `SetupError` (./txline.ts's

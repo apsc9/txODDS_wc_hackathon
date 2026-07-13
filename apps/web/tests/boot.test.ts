@@ -43,7 +43,7 @@ describe("ensureStarted", () => {
       /* succeeds on the retry */
     });
 
-    vi.doMock("../src/server/txline", () => ({ loadTxlineCreds }));
+    vi.doMock("../src/server/txline", () => ({ loadTxlineCreds, apiBase: vi.fn() }));
     vi.doMock("../src/server/feedhub", () => ({ hub: { start: hubStart } }));
     vi.doMock("../src/server/chain", () => ({ startChainPoller }));
 
@@ -77,6 +77,43 @@ describe("ensureStarted", () => {
     expect(startChainPoller).toHaveBeenCalledTimes(2);
   });
 
+  it("fails fast when TXLINE_API is missing (apiBase throws), leaving boot retryable", async () => {
+    // Without this check at boot, a missing TXLINE_API only surfaces deep
+    // inside openStream's reconnect loop (which swallows it and retries
+    // forever) — a silently-dead feed instead of an actionable setup error.
+    const loadTxlineCreds = vi.fn();
+    const apiBase = vi.fn();
+    apiBase.mockImplementationOnce(() => {
+      throw new Error("TXLINE_API is not set. Copy .env.local.example to .env.local and fill it in.");
+    });
+    apiBase.mockImplementationOnce(() => "https://txline-dev.example");
+    const hubStart = vi.fn();
+    const startChainPoller = vi.fn();
+
+    vi.doMock("../src/server/txline", () => ({ loadTxlineCreds, apiBase }));
+    vi.doMock("../src/server/feedhub", () => ({ hub: { start: hubStart } }));
+    vi.doMock("../src/server/chain", () => ({ startChainPoller }));
+
+    const { ensureStarted } = await import("../src/server/boot");
+
+    expect(() => ensureStarted()).toThrow("TXLINE_API is not set");
+    expect(apiBase).toHaveBeenCalledTimes(1);
+    expect(
+      (globalThis as unknown as { __fulltimeBooted?: boolean }).__fulltimeBooted,
+    ).toBeFalsy();
+    // apiBase throwing must stop the streams/poller from starting this
+    // attempt — that's the whole point of failing fast at boot.
+    expect(hubStart).not.toHaveBeenCalled();
+    expect(startChainPoller).not.toHaveBeenCalled();
+
+    // Fixing .env.local and retrying reruns the whole sequence.
+    expect(() => ensureStarted()).not.toThrow();
+    expect((globalThis as unknown as { __fulltimeBooted?: boolean }).__fulltimeBooted).toBe(
+      true,
+    );
+    expect(hubStart).toHaveBeenCalledTimes(1);
+  });
+
   it("does not set the boot flag when hub.start throws, and retries on the next call", async () => {
     const loadTxlineCreds = vi.fn();
     const hubStart = vi.fn();
@@ -88,7 +125,7 @@ describe("ensureStarted", () => {
     });
     const startChainPoller = vi.fn();
 
-    vi.doMock("../src/server/txline", () => ({ loadTxlineCreds }));
+    vi.doMock("../src/server/txline", () => ({ loadTxlineCreds, apiBase: vi.fn() }));
     vi.doMock("../src/server/feedhub", () => ({ hub: { start: hubStart } }));
     vi.doMock("../src/server/chain", () => ({ startChainPoller }));
 

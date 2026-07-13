@@ -21,9 +21,16 @@ export async function GET(
     const receipt = await buildReceipt(marketPda);
     return Response.json(receipt);
   } catch (err) {
-    // buildReceipt's `market.fetch` throws when the pda doesn't hold a
-    // Market account (bad pda, wrong program, or the account simply doesn't
-    // exist) — that's a client input error, not a server fault.
-    return toErrorResponse(err, 404);
+    // Client-input errors — a malformed pda (`new PublicKey` throws
+    // "Invalid public key input"), a pda that doesn't hold an account
+    // (Anchor: "Account does not exist or has no data ..."), or one holding
+    // some other program's account ("Invalid account discriminator") — are
+    // 404s. Anything else (RPC connection refused, timeout, 429, ...) is an
+    // upstream fault: a devnet RPC blip must not render a perfectly valid
+    // receipt as nonexistent, so those map to 503 instead.
+    const message = err instanceof Error ? err.message : "";
+    const isMissingAccount =
+      /account does not exist|invalid account discriminator|invalid public key/i.test(message);
+    return toErrorResponse(err, isMissingAccount ? 404 : 503);
   }
 }

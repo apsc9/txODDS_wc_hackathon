@@ -73,7 +73,11 @@ export function loadTxlineCreds(): TxlineCreds {
   return { jwt: creds.jwt, apiToken: creds.apiToken };
 }
 
-function apiBase(): string {
+// Exported so boot.ts's ensureStarted() can fail fast on a missing
+// TXLINE_API alongside its loadTxlineCreds() check — openStream's reconnect
+// loop swallows this throw and retries forever, which reads as a
+// silently-dead feed instead of an actionable setup error.
+export function apiBase(): string {
   const base = process.env.TXLINE_API;
   if (!base) {
     throw new SetupError("TXLINE_API is not set. Copy .env.local.example to .env.local and fill it in.");

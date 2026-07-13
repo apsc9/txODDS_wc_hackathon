@@ -6,7 +6,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import type { Fixture, GoalEvent, LiveScore, MarketDTO, PricePoint } from "@/lib/types";
 import { useFeedUp, useMarkets, useScores } from "@/hooks/use-markets";
 import { usePositions } from "@/hooks/use-positions";
-import { classifyFixtureStatus, deepestPool, formatPooled, shouldShowStaleBadge, sumPooled } from "@/lib/match-list";
+import { classifyFixtureStatus, fixtureDefaultMarket, formatPooled, shouldShowStaleBadge, sumPooled } from "@/lib/match-list";
 import { canNeedZeroStat, marketGroup, predicateHuman, predicateMono, type MarketGroup } from "@/lib/statkeys";
 import { ppmToCents } from "@/lib/fpmm";
 import { Scorebug } from "@/components/scorebug";
@@ -139,10 +139,17 @@ export function MarketRow({ m, selected, onSelect, t1, t2, stale = false }: Mark
 export type MarketBoardInitial = {
   fixture: Fixture;
   scores: Record<number, LiveScore>;
+  // The FULL market cache (every fixture), not just this fixture's markets:
+  // it seeds the GLOBAL ["markets"] TanStack key via useMarkets, whose
+  // initialData must never be a filtered subset (see the fixture page RSC's
+  // comment). Everything fixture-scoped below is re-derived from this full
+  // list — useMarkets(fixtureId, ...) for display, fixtureDefaultMarket for
+  // the initial selection.
   markets: MarketDTO[];
   // RSC-read (no HTTP round trip — same posture as fixture/scores/markets
-  // above) history + goals for whichever market `deepestPool(markets)`
-  // picks as the default selection, so that market's chart paints with real
+  // above) history + goals for whichever market
+  // `fixtureDefaultMarket(markets, fixtureId)` picks as the default
+  // selection, so that market's chart paints with real
   // data on first server-rendered paint. Only ever valid for that one pda —
   // see `initialSelectedPda` below and src/hooks/use-history.ts's doc
   // comment on why passing it for a different pda would be wrong.
@@ -179,21 +186,21 @@ export function MarketBoard({
   const stale = shouldShowStaleBadge(status, feedUp, score?.recvTs);
   const pooled = sumPooled(markets);
 
-  // Selection defaults to the deepest-pool market at mount and is otherwise
-  // fully user-driven — deliberately not re-derived on every `markets`
-  // update (a live pool shift shouldn't yank the user's current selection
-  // out from under them). Drives the trade slip in the rail below: `side`
-  // is preset by a row's YES/NO chip click (see `handleSelect`) and
-  // otherwise left as the user last set it.
-  const [selected, setSelected] = useState<MarketDTO | undefined>(() =>
-    deepestPool(initial.markets)
-  );
+  // Selection defaults to THIS fixture's deepest-pool market at mount
+  // (initial.markets is the full cross-fixture cache, so it must be
+  // fixture-filtered first — fixtureDefaultMarket does both steps) and is
+  // otherwise fully user-driven — deliberately not re-derived on every
+  // `markets` update (a live pool shift shouldn't yank the user's current
+  // selection out from under them). Drives the trade slip in the rail
+  // below: `side` is preset by a row's YES/NO chip click (see
+  // `handleSelect`) and otherwise left as the user last set it.
+  const initialDefaultMarket = fixtureDefaultMarket(initial.markets, fixtureId);
+  const [selected, setSelected] = useState<MarketDTO | undefined>(initialDefaultMarket);
   const [side, setSide] = useState<Side>("YES");
   const [createOpen, setCreateOpen] = useState(false);
-  const [activeGroup, setActiveGroup] = useState<MarketGroup>(() => {
-    const deepest = deepestPool(initial.markets);
-    return deepest ? marketGroup(deepest) : "GOALS";
-  });
+  const [activeGroup, setActiveGroup] = useState<MarketGroup>(() =>
+    initialDefaultMarket ? marketGroup(initialDefaultMarket) : "GOALS"
+  );
 
   const grouped = useMemo(() => {
     const map = new Map<MarketGroup, MarketDTO[]>();
@@ -218,11 +225,12 @@ export function MarketBoard({
   const selectedLive = selected ? (markets.find((m) => m.pda === selected.pda) ?? selected) : undefined;
 
   // `initial.history`/`initial.goals` were only ever fetched (server-side,
-  // by page.tsx) for this exact pda — the deepest-pool market at RSC render
-  // time. PriceChart must not receive them for any other selection (see
-  // src/hooks/use-history.ts), so this is re-derived from the same pure
-  // `deepestPool` rather than trusted to stay in sync with `selected`.
-  const initialSelectedPda = deepestPool(initial.markets)?.pda;
+  // by page.tsx) for this exact pda — this fixture's deepest-pool market at
+  // RSC render time. PriceChart must not receive them for any other
+  // selection (see src/hooks/use-history.ts), so this is re-derived from
+  // the same pure `fixtureDefaultMarket` the RSC used rather than trusted
+  // to stay in sync with `selected`.
+  const initialSelectedPda = initialDefaultMarket?.pda;
 
   return (
     <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[1fr_320px]">

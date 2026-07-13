@@ -271,6 +271,23 @@ export function deepestPool<M extends { poolYes: string; poolNo: string }>(
   return best;
 }
 
+// The default-selection market for ONE fixture, computed from the FULL
+// market cache. Exists because the fixture page must seed the global
+// ["markets"] TanStack cache with the *entire* hub cache (a fixture-filtered
+// subset would make the home/portfolio pages' own full-cache initialData a
+// no-op after client-nav, silently dropping every other fixture's markets
+// until the next markets-changed SSE diff) — so anything fixture-scoped,
+// like which market the chart/trade-slip select by default, has to re-filter
+// client- or RSC-side from that full list. Used by both the fixture RSC
+// (src/app/fixture/[fixtureId]/page.tsx, to seed the default chart history)
+// and MarketBoard (src/components/market-row.tsx, for its initial
+// `selected` state) so the two picks can never disagree.
+export function fixtureDefaultMarket<
+  M extends { poolYes: string; poolNo: string; fixtureId: number },
+>(markets: M[], fixtureId: number): M | undefined {
+  return deepestPool(markets.filter((m) => m.fixtureId === fixtureId));
+}
+
 // Matches src/lib/fpmm.ts's ppm-scale base units (1_000_000 = 1 display
 // unit) — same 6-decimal convention as the stake mint (see Task 10 brief:
 // `seed_liquidity = 50_000_000` = 50 tokens).

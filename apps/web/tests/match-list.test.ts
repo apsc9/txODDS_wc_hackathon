@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   classifyFixtureStatus,
+  fixtureDefaultMarket,
   flag,
   teamCode,
   teamColors,
@@ -205,5 +206,27 @@ describe("formatKickoff", () => {
     const ms = 1784386800000;
     expect(formatKickoff(ms)).toBe(formatKickoff(ms));
     expect(formatKickoff(ms)).toBe("Sat 15:00 UTC");
+  });
+});
+
+describe("fixtureDefaultMarket", () => {
+  // Both the fixture RSC and MarketBoard now receive the FULL market cache
+  // (the global ["markets"] seed must never be a fixture-filtered subset),
+  // so the default chart/trade-slip selection has to be re-scoped to the
+  // fixture — a globally deeper pool on ANOTHER fixture must not win.
+  const mk = (pda: string, fixtureId: number, pool: number) => ({
+    pda,
+    fixtureId,
+    poolYes: String(pool),
+    poolNo: String(pool),
+  });
+
+  it("picks this fixture's deepest pool even when another fixture has a deeper one", () => {
+    const full = [mk("f1-shallow", 1, 1_000_000), mk("f1-deep", 1, 5_000_000), mk("f2-deepest", 2, 50_000_000)];
+    expect(fixtureDefaultMarket(full, 1)?.pda).toBe("f1-deep");
+  });
+
+  it("returns undefined when the fixture has no markets in the cache", () => {
+    expect(fixtureDefaultMarket([mk("f2", 2, 1_000_000)], 1)).toBeUndefined();
   });
 });

@@ -13,6 +13,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
+  // tsconfig.json uses "jsx": "preserve" (Next.js transforms JSX itself), so
+  // esbuild falls back to the classic React.createElement runtime under
+  // vitest — which breaks importing any .tsx module (e.g. the fixture page
+  // RSC in tests/fixture-page.test.ts) with "React is not defined". Pin the
+  // automatic runtime, matching what Next.js compiles with.
+  esbuild: { jsx: "automatic" },
   test: {
     include: ["tests/**/*.test.ts"]
   }

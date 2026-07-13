@@ -17,7 +17,7 @@ import type { GoalEvent, PricePoint } from "@/lib/types";
 // `initial` mirrors use-markets.ts's RSC-seeding pattern: the fixture page
 // (a Server Component, reading `hub` directly — see src/app/fixture/
 // [fixtureId]/page.tsx) already knows which market is selected by default
-// (deepestPool) and can read its history straight out of the ring buffer
+// (fixtureDefaultMarket) and can read its history straight out of the ring buffer
 // with no HTTP round trip, so that one market's first paint needs no client
 // fetch at all — this is what makes the chart's SSR markup show real data
 // instead of an empty shell. Only ever pass `initial` for the pda it was

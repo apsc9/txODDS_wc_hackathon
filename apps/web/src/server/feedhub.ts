@@ -297,18 +297,34 @@ function buildHub(): HubBuild {
     emit({ type: "score", fixtureId });
   }
 
+  // One-shot-with-retries fixtures load: the snapshot endpoint has no
+  // stream to reconnect, so a boot that lands during a TxLINE blip would
+  // otherwise leave hub.fixtures empty for the whole process lifetime
+  // (home: "No fixtures in range right now"; every fixture page 404s) while
+  // the odds/scores streams reconnect happily. Mirrors openStream's backoff
+  // posture (1s doubling, 30s cap) and stops for good after the first
+  // success. Failures stay non-fatal to the streams, same as before.
+  function loadFixturesSnapshot(): void {
+    let backoffMs = 1000;
+    const maxBackoffMs = 30000;
+    const attempt = (): void => {
+      fetchFixturesSnapshot()
+        .then((list) => {
+          for (const f of list) fixtures.set(f.FixtureId, f);
+        })
+        .catch(() => {
+          setTimeout(attempt, backoffMs);
+          backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
+        });
+    };
+    attempt();
+  }
+
   function start(): void {
     if (started) return;
     started = true;
 
-    fetchFixturesSnapshot()
-      .then((list) => {
-        for (const f of list) fixtures.set(f.FixtureId, f);
-      })
-      .catch(() => {
-        // a failed snapshot fetch shouldn't prevent the live streams from
-        // starting; fixtures will stay empty until the next successful call.
-      });
+    loadFixturesSnapshot();
 
     stopOdds = openStream("odds", ingestOdds, () => setFeedUp(false));
     stopScores = openStream("scores", ingestScores, () => setFeedUp(false));

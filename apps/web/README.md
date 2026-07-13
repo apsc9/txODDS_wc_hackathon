@@ -17,8 +17,11 @@ review; it was built for a hackathon demo, not custody of real funds.
 - A TxLINE devnet API account (ask a team member, or see TxODDS's onboarding
   docs) — needed to fetch fixtures/odds/scores at all.
 - A funded devnet Solana wallet (`.keys/dev-wallet.json` at the repo root —
-  shared by this app's server-side chain poller and the `packages/ingest`
-  scripts below). `solana airdrop` on devnet if it's dry.
+  used by the `packages/ingest` scripts below: the TxLINE auth CLI and the
+  market seeder). The web app's own server-side chain poller is read-only
+  and signs nothing (it uses a throwaway generated keypair — see
+  `src/server/chain.ts`), so no wallet is needed just to run the app.
+  `solana airdrop` on devnet if the wallet is dry.
 
 ## 1. Environment
 

@@ -82,7 +82,19 @@ export async function GET(request: Request): Promise<Response> {
       for (const [fixtureId, score] of hub.scores) {
         scoresSnapshot[fixtureId] = score;
       }
-      safeEnqueue(sseFrame("snapshot", { scores: scoresSnapshot, feedUp: hub.feedUp }));
+      // `markets` rides along in the snapshot (additive field — old clients
+      // ignore it) so an EventSource reconnect replaces the client's
+      // ["markets"] cache with authoritative server state: reconnects replay
+      // this frame, never the `markets` diffs missed while disconnected,
+      // and the next markets-changed diff is unbounded on a quiet feed.
+      const marketsSnapshot: MarketDTO[] = Array.from(hub.marketCache.values());
+      safeEnqueue(
+        sseFrame("snapshot", {
+          scores: scoresSnapshot,
+          feedUp: hub.feedUp,
+          markets: marketsSnapshot,
+        }),
+      );
 
       unsubscribe = hub.subscribe((evt) => {
         safeEnqueue(sseFrame(evt.type, freshPayload(evt)));
