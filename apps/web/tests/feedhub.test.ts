@@ -3,7 +3,14 @@ import { hub, ingestOdds, ingestScores, type MarketDTO, type HubEvent } from "..
 import { encodeStatKey, BASE } from "../src/lib/statkeys";
 // Real recorded odds packets (verbatim from the Jul-7 recording) — shared
 // with chain.test.ts's poll wiring test, see fixtures.ts for provenance.
-import { REAL_OVERUNDER_ODDS_LINE, REAL_1X2_ODDS_LINE } from "./fixtures";
+import {
+  REAL_OVERUNDER_ODDS_LINE,
+  REAL_1X2_ODDS_LINE,
+  REAL_OU15_FT_ODDS_LINE,
+  REAL_OU15_HALF1_ODDS_LINE,
+  REAL_1X2_FT_ODDS_LINE_18237038,
+  REAL_1X2_HALF1_ODDS_LINE_18237038,
+} from "./fixtures";
 
 function scoresPacket(fixtureId: number, goals1: number): string {
   return JSON.stringify({
@@ -52,7 +59,7 @@ describe("ingestOdds", () => {
   it("populates consensus from a real recorded OVERUNDER demarginated packet", () => {
     ingestOdds(REAL_OVERUNDER_ODDS_LINE);
 
-    const entry = hub.consensus.get("18202701:OVERUNDER_PARTICIPANT_GOALS:line=2.5");
+    const entry = hub.consensus.get("18202701:OVERUNDER_PARTICIPANT_GOALS:line=2.5:");
     expect(entry).toBeDefined();
     expect(entry?.pctByName.over).toBeCloseTo(48.031);
     expect(entry?.pctByName.under).toBeCloseTo(51.975);
@@ -65,7 +72,17 @@ describe("ingestOdds", () => {
       "SomeOtherBookmaker"
     );
     ingestOdds(other);
-    expect(hub.consensus.has("18202701:OVERUNDER_PARTICIPANT_GOALS:line=2.5")).toBe(false);
+    expect(hub.consensus.has("18202701:OVERUNDER_PARTICIPANT_GOALS:line=2.5:")).toBe(false);
+  });
+
+  it("keeps full-time and first-half series under distinct consensus keys", () => {
+    ingestOdds(REAL_OU15_FT_ODDS_LINE);
+    ingestOdds(REAL_OU15_HALF1_ODDS_LINE);
+
+    const ft = hub.consensus.get("18237038:OVERUNDER_PARTICIPANT_GOALS:line=1.5:");
+    const half1 = hub.consensus.get("18237038:OVERUNDER_PARTICIPANT_GOALS:line=1.5:half=1");
+    expect(ft?.pctByName.over).toBeCloseTo(77.519);
+    expect(half1?.pctByName.over).toBeCloseTo(29.958);
   });
 });
 
@@ -202,6 +219,55 @@ describe("fairPpmFor", () => {
     // ~73.4% for a ~7.9% outcome. Conservative posture: reversed order must
     // fall through to null (no part2 mapping — kept out of scope on purpose).
     expect(hub.fairPpmFor(awayWinMarket)).toBeNull();
+  });
+
+  it("FT over-1.5 fair survives a later first-half packet on the same line (no key clobber)", () => {
+    const over15Market: MarketDTO = {
+      fixtureId: 18237038,
+      statKeyA: encodeStatKey(0, BASE.GOALS_T1),
+      statKeyB: encodeStatKey(0, BASE.GOALS_T2),
+      op: "Add",
+      comparison: "GreaterThan",
+      threshold: 1,
+    };
+    ingestOdds(REAL_OU15_FT_ODDS_LINE);
+    ingestOdds(REAL_OU15_HALF1_ODDS_LINE);
+    // Live bug (France-Spain, Jul 14): both series shared one key, so the
+    // chart's fair line sawtoothed 77.5% ↔ 30% as the packets alternated.
+    // FT market must keep pricing from the FT series: round(77.519 * 10000).
+    expect(hub.fairPpmFor(over15Market)).toBe(775190);
+  });
+
+  it("FT home-win fair survives a later first-half 1X2 packet (no key clobber)", () => {
+    const homeWinMarket: MarketDTO = {
+      fixtureId: 18237038,
+      statKeyA: encodeStatKey(0, BASE.GOALS_T1),
+      statKeyB: encodeStatKey(0, BASE.GOALS_T2),
+      op: "Subtract",
+      comparison: "GreaterThan",
+      threshold: 0,
+    };
+    ingestOdds(REAL_1X2_FT_ODDS_LINE_18237038);
+    ingestOdds(REAL_1X2_HALF1_ODDS_LINE_18237038);
+    // part1 FT pct "40.193" -> round(40.193 * 10000), NOT half=1's 30.741.
+    expect(hub.fairPpmFor(homeWinMarket)).toBe(401930);
+  });
+
+  it("non-FT (first-half) goals market returns null — consensus mappings are FT-only", () => {
+    const over15FirstHalfMarket: MarketDTO = {
+      fixtureId: 18237038,
+      statKeyA: encodeStatKey(1, BASE.GOALS_T1),
+      statKeyB: encodeStatKey(1, BASE.GOALS_T2),
+      op: "Add",
+      comparison: "GreaterThan",
+      threshold: 1,
+    };
+    ingestOdds(REAL_OU15_FT_ODDS_LINE);
+    ingestOdds(REAL_OU15_HALF1_ODDS_LINE);
+    // A P1 market must not silently price off the FT lookup key (a half=1
+    // mapping is deliberately out of scope — conservative null, same posture
+    // as the reversed-Subtract case above).
+    expect(hub.fairPpmFor(over15FirstHalfMarket)).toBeNull();
   });
 
   it("returns null for predicates it doesn't understand", () => {

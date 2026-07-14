@@ -75,6 +75,7 @@ type OddsPacket = {
   FixtureId: number;
   SuperOddsType: string;
   MarketParameters: string | null;
+  MarketPeriod: string | null;
   Bookmaker: string;
   PriceNames: string[];
   Pct: string[];
@@ -159,12 +160,17 @@ function buildHub(): HubBuild {
   // goals predicates (over/under total goals) — any other stat pair
   // (yellows, corners, reds, ...) must fall through to `return null` rather
   // than be silently priced off goals-derived consensus.
+  // Both consensus mappings below are FULL-TIME only (the lookup keys end in
+  // the empty MarketPeriod segment), so both guards also require period 0 —
+  // a first-half goals market must fall through to null rather than silently
+  // price off full-time consensus.
   function isGoalsPair(statKeyA: number, statKeyB: number | null): boolean {
     if (statKeyB === null) return false;
     const a = decodeStatKey(statKeyA);
     const b = decodeStatKey(statKeyB);
     return (
-      a.period === b.period &&
+      a.period === 0 &&
+      b.period === 0 &&
       ((a.base === BASE.GOALS_T1 && b.base === BASE.GOALS_T2) ||
         (a.base === BASE.GOALS_T2 && b.base === BASE.GOALS_T1))
     );
@@ -181,12 +187,12 @@ function buildHub(): HubBuild {
     if (statKeyB === null) return false;
     const a = decodeStatKey(statKeyA);
     const b = decodeStatKey(statKeyB);
-    return a.period === b.period && a.base === BASE.GOALS_T1 && b.base === BASE.GOALS_T2;
+    return a.period === 0 && b.period === 0 && a.base === BASE.GOALS_T1 && b.base === BASE.GOALS_T2;
   }
 
   function fairPpmFor(m: MarketDTO): number | null {
     if (m.op === "Add" && m.comparison === "GreaterThan" && isGoalsPair(m.statKeyA, m.statKeyB)) {
-      const key = `${m.fixtureId}:OVERUNDER_PARTICIPANT_GOALS:line=${m.threshold}.5`;
+      const key = `${m.fixtureId}:OVERUNDER_PARTICIPANT_GOALS:line=${m.threshold}.5:`;
       const c = consensus.get(key);
       const pct = c?.pctByName["over"];
       return Number.isFinite(pct) ? Math.round((pct as number) * 10000) : null;
@@ -198,7 +204,7 @@ function buildHub(): HubBuild {
       m.threshold === 0 &&
       isHomeMinusAwayGoals(m.statKeyA, m.statKeyB)
     ) {
-      const key = `${m.fixtureId}:1X2_PARTICIPANT_RESULT:`;
+      const key = `${m.fixtureId}:1X2_PARTICIPANT_RESULT::`;
       const c = consensus.get(key);
       const pct = c?.pctByName["part1"];
       return Number.isFinite(pct) ? Math.round((pct as number) * 10000) : null;
@@ -234,7 +240,11 @@ function buildHub(): HubBuild {
       pctByName[name] = parseFloat(pkt.Pct![i]);
     });
 
-    const key = `${pkt.FixtureId}:${pkt.SuperOddsType}:${pkt.MarketParameters ?? ""}`;
+    // MarketPeriod must be part of the key: the feed publishes a full-time
+    // (null) AND a first-half ("half=1") series for the same SuperOddsType +
+    // MarketParameters, and collapsing them onto one key makes the FT fair
+    // sawtooth between the two series (seen live, France-Spain Jul 14).
+    const key = `${pkt.FixtureId}:${pkt.SuperOddsType}:${pkt.MarketParameters ?? ""}:${pkt.MarketPeriod ?? ""}`;
     const ts = typeof pkt.Ts === "number" ? pkt.Ts : Date.now();
     consensus.set(key, { pctByName, ts });
   }
