@@ -179,13 +179,22 @@ function VoidStory({ r }: { r: ReceiptDTO }) {
   );
 }
 
+// On-chain enum names are camel-cased identifiers ("ResolvedYes"); the
+// receipt shows a human label instead.
+const STATUS_LABEL: Record<ReceiptDTO["status"], string> = {
+  Open: "Open",
+  ResolvedYes: "Resolved — YES",
+  ResolvedNo: "Resolved — NO",
+  Voided: "Voided",
+};
+
 function PendingNote({ status }: { status: ReceiptDTO["status"] }) {
   return (
     <div
       className="font-mono-num mt-1 border px-3 py-2 text-[11px]"
       style={{ borderColor: "#ccc", color: "#777" }}
     >
-      market status: {status} — no resolution proof on chain yet
+      market status: {STATUS_LABEL[status]} — no resolution proof on chain yet
     </div>
   );
 }
@@ -215,7 +224,7 @@ export function ReceiptChain({ r }: ReceiptChainProps) {
         </div>
 
         <div className="font-mono-num my-3 text-[11px]" style={{ color: statusColor }}>
-          {r.status}
+          {STATUS_LABEL[r.status]}
         </div>
 
         <Section n="①" title="MARKET">
