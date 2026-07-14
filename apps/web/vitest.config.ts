@@ -20,6 +20,6 @@ export default defineConfig({
   // automatic runtime, matching what Next.js compiles with.
   esbuild: { jsx: "automatic" },
   test: {
-    include: ["tests/**/*.test.ts"]
+    include: ["tests/**/*.test.{ts,tsx}"]
   }
 });
