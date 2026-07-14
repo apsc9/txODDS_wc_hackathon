@@ -5,7 +5,7 @@ export function SiteNav() {
   return (
     <nav className="border-b border-[var(--line)] sticky top-0 z-50 bg-[var(--bg)]">
       <div className="flex items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-1">
+        <Link href="/" className="mr-8 flex items-center gap-1">
           <span className="font-display text-2xl font-bold text-[var(--chalk)]">
             FULL
           </span>
