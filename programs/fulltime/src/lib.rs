@@ -90,6 +90,11 @@ pub mod fulltime {
         require!(amount_in > 0, FulltimeError::ZeroAmount);
         let market = &mut ctx.accounts.market;
         require!(market.status == MarketStatus::Open, FulltimeError::MarketNotOpen);
+        // Trading closes when the resolve window opens: past resolve_after_ts
+        // the outcome may already be provable, so a buy would be sniping a
+        // known result off slower counterparties.
+        let now = Clock::get()?.unix_timestamp;
+        require!(now < market.resolve_after_ts, FulltimeError::TradingClosed);
 
         let (pool_this, pool_other) = match side {
             Side::Yes => (market.pool_yes, market.pool_no),
@@ -194,7 +199,7 @@ pub mod fulltime {
             MarketStatus::ResolvedNo
         };
         msg!(
-            "market {} resolved {:?} via TxLINE proof (fixture {}, packet ts {})",
+            "market {} resolved {:?} (fixture {}, ts {})",
             market.market_id, market.status, market.fixture_id, bundle.ts
         );
         Ok(())

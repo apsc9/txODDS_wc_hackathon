@@ -249,7 +249,7 @@ fn full_lifecycle_create_buy_resolve_claim_with_real_proof() {
     let creator_token = h.new_funded_token_account(&creator, 1_000 * UNITS);
     let buyer_token = h.new_funded_token_account(&buyer, 1_000 * UNITS);
 
-    h.set_clock(packet_secs - 50); // during the match
+    h.set_clock(packet_secs - 150); // during the match, before the resolve window opens
 
     // --- create ---
     let args = default_args(&bundle, 1);
@@ -423,7 +423,7 @@ fn unresolved_market_voids_and_refunds_cost_basis() {
     h.svm.airdrop(&buyer.pubkey(), 10_000_000_000).unwrap();
     let creator_token = h.new_funded_token_account(&creator, 1_000 * UNITS);
     let buyer_token = h.new_funded_token_account(&buyer, 1_000 * UNITS);
-    h.set_clock(packet_secs - 50);
+    h.set_clock(packet_secs - 150);
 
     let args = default_args(&bundle, 2);
     let ix = create_market_ix(&h, &creator, creator_token, &args);
@@ -503,4 +503,57 @@ fn unresolved_market_voids_and_refunds_cost_basis() {
     tx(&mut h.svm, &creator, &[], &[wl_ix]).unwrap();
     assert_eq!(h.token_balance(&creator_token) - before, 500 * UNITS);
     assert_eq!(h.token_balance(&vault), 0);
+}
+
+#[test]
+fn buy_rejected_once_resolve_window_opens() {
+    let mut h = setup();
+    let bundle = load_bundle();
+    let packet_secs = bundle.ts / 1000;
+
+    let creator = Keypair::new();
+    let buyer = Keypair::new();
+    h.svm.airdrop(&creator.pubkey(), 10_000_000_000).unwrap();
+    h.svm.airdrop(&buyer.pubkey(), 10_000_000_000).unwrap();
+    let creator_token = h.new_funded_token_account(&creator, 1_000 * UNITS);
+    let buyer_token = h.new_funded_token_account(&buyer, 1_000 * UNITS);
+
+    h.set_clock(packet_secs - 150);
+    let args = default_args(&bundle, 3);
+    let ix = create_market_ix(&h, &creator, creator_token, &args);
+    tx(&mut h.svm, &creator, &[], &[ix]).unwrap();
+    let (market_pda, vault) = h.market_pdas(&creator.pubkey(), 3);
+
+    // Clock lands exactly on resolve_after_ts: the resolve window is open,
+    // the outcome may already be known — buying must be rejected (boundary
+    // is inclusive: now == resolve_after_ts is already closed).
+    h.set_clock(args.resolve_after_ts);
+    let (position, _) = Pubkey::find_program_address(
+        &[Position::SEED, market_pda.as_ref(), buyer.pubkey().as_ref()],
+        &fulltime::id(),
+    );
+    let buy_ix = Instruction::new_with_bytes(
+        fulltime::id(),
+        &fulltime::instruction::Buy { side: Side::No, amount_in: 50 * UNITS, min_shares_out: 0 }.data(),
+        fulltime::accounts::Buy {
+            buyer: buyer.pubkey(),
+            market: market_pda,
+            position,
+            vault,
+            buyer_token,
+            mint: h.mint,
+            token_program: spl_token::id(),
+            system_program: anchor_lang::system_program::ID,
+        }
+        .to_account_metas(None),
+    );
+    let err = tx(&mut h.svm, &buyer, &[], &[buy_ix]).unwrap_err();
+    assert!(err.contains(&code(FulltimeError::TradingClosed)), "got: {err}");
+
+    // market untouched: pools and vault unchanged, no position created
+    let m = h.market(&market_pda);
+    assert_eq!(m.pool_yes, 500 * UNITS);
+    assert_eq!(m.pool_no, 500 * UNITS);
+    assert_eq!(h.token_balance(&vault), 500 * UNITS);
+    assert!(h.svm.get_account(&position).is_none() || h.svm.get_account(&position).unwrap().data.is_empty());
 }

@@ -2,31 +2,31 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum FulltimeError {
-    #[msg("Market is not open for this action")]
+    #[msg("Market not open")]
     MarketNotOpen,
-    #[msg("Market is not resolved yet")]
+    #[msg("Not resolved")]
     MarketNotResolved,
-    #[msg("Amount must be greater than zero")]
+    #[msg("Zero amount")]
     ZeroAmount,
-    #[msg("Slippage: fewer shares out than min_shares_out")]
+    #[msg("Slippage exceeded")]
     SlippageExceeded,
     #[msg("AMM math overflow")]
     MathOverflow,
-    #[msg("Too early to resolve this market")]
+    #[msg("Too early to resolve")]
     ResolveTooEarly,
-    #[msg("Proven stat packet predates the market's resolve window")]
+    #[msg("Stat packet predates resolve window")]
     StalePacket,
-    #[msg("Finality gate: packet too recent, VAR window still open")]
+    #[msg("Packet inside finality delay")]
     FinalityGateOpen,
-    #[msg("Proof fixture does not match this market's fixture")]
+    #[msg("Fixture mismatch")]
     FixtureMismatch,
-    #[msg("Proof stat keys do not match this market's stat keys")]
+    #[msg("Stat key mismatch")]
     StatKeyMismatch,
-    #[msg("Wrong daily scores roots account for the packet timestamp")]
+    #[msg("Wrong daily scores roots account")]
     WrongRootsAccount,
     #[msg("Wrong oracle program")]
     WrongOracleProgram,
-    #[msg("Oracle returned no return data")]
+    #[msg("No oracle return data")]
     OracleNoReturn,
     #[msg("Void deadline not reached")]
     VoidTooEarly,
@@ -34,8 +34,10 @@ pub enum FulltimeError {
     NothingToClaim,
     #[msg("Already claimed")]
     AlreadyClaimed,
-    #[msg("Only the market creator may do this")]
+    #[msg("Not the market creator")]
     NotCreator,
     #[msg("Invalid market timing parameters")]
     InvalidTiming,
+    #[msg("Trading closed")]
+    TradingClosed,
 }

@@ -43,9 +43,18 @@ function toBytes32(value: string | number[] | Uint8Array): number[] {
 const toProofNodes = (nodes: Array<{ hash: string; isRightSibling: boolean }>) =>
   nodes.map((n) => ({ hash: toBytes32(n.hash), isRightSibling: n.isRightSibling }));
 
-async function fetchFreshProof(api: ReturnType<typeof apiClient>) {
+// Trading closes at resolve_after_ts (TradingClosed gate), and resolve needs
+// a packet with ts >= resolve_after_ts — so the smoke market's resolve window
+// must open in the near FUTURE: create + buy inside it, then wait for the
+// feed to produce a provable score update after the window opens.
+const RESOLVE_WINDOW_SECS = 30;
+
+// Pick a fixture that is currently producing provable updates: newest update
+// in the recent buckets whose statKey=1 value is already nonzero (stats are
+// cumulative, so later updates stay provable).
+async function pickActiveFixture(api: ReturnType<typeof apiClient>): Promise<number> {
   const now = Date.now();
-  for (let back = 3; back < 12 * 24 * 14; back++) {
+  for (let back = 0; back < 12 * 24 * 14; back++) {
     const t = new Date(now - back * 300_000);
     const epochDay = Math.floor(t.getTime() / 86_400_000);
     const res = await api.get(
@@ -53,31 +62,80 @@ async function fetchFreshProof(api: ReturnType<typeof apiClient>) {
       { validateStatus: () => true },
     );
     if (res.status !== 200 || !Array.isArray(res.data) || res.data.length === 0) continue;
-    // newest updates last; try from the end until a proof fetch succeeds
-    for (const upd of [...res.data].reverse().slice(0, 5)) {
+    for (const upd of [...res.data].reverse().slice(0, 8)) {
       const fixtureId = upd.fixtureId ?? upd.FixtureId;
       const seq = upd.seq ?? upd.Seq;
       const { data, status } = await api.get("/api/scores/stat-validation", {
         params: { fixtureId, seq, statKey: 1 },
         validateStatus: () => true,
       });
+      if (status === 200 && data?.statToProve?.value > 0) {
+        console.log(`[smoke] active fixture: ${fixtureId} (statKey1=${data.statToProve.value}, ${back * 5}min ago)`);
+        return fixtureId;
+      }
+    }
+  }
+  throw new Error("no fixture with provable updates found");
+}
+
+async function scanForProof(api: ReturnType<typeof apiClient>, minTsMs: number, fixtureId?: number) {
+  const now = Date.now();
+  // scan buckets from minTs forward to now (updates are bucketed per 5min)
+  for (let t = minTsMs - 300_000; t <= now + 300_000; t += 300_000) {
+    const d = new Date(t);
+    const epochDay = Math.floor(t / 86_400_000);
+    const res = await api.get(
+      `/api/scores/updates/${epochDay}/${d.getUTCHours()}/${Math.floor(d.getUTCMinutes() / 5)}`,
+      { validateStatus: () => true },
+    );
+    if (res.status !== 200 || !Array.isArray(res.data) || res.data.length === 0) continue;
+    for (const upd of [...res.data].reverse().slice(0, 8)) {
+      const fid = upd.fixtureId ?? upd.FixtureId;
+      if (fixtureId !== undefined && fid !== fixtureId) continue;
+      const seq = upd.seq ?? upd.Seq;
+      const { data, status } = await api.get("/api/scores/stat-validation", {
+        params: { fixtureId: fid, seq, statKey: 1 },
+        validateStatus: () => true,
+      });
       // zero-valued stats trip the oracle's StatNotZero (6074) R2 check —
-      // only nonzero stat values are provable by inclusion
-      if (status === 200 && data?.summary && data.statToProve?.value > 0) {
+      // only nonzero stat values are provable by inclusion; also require the
+      // packet to be inside the market's resolve window
+      if (
+        status === 200 &&
+        data?.summary &&
+        data.statToProve?.value > 0 &&
+        data.summary.updateStats.minTimestamp >= minTsMs
+      ) {
         console.log(
-          `[smoke] fresh proof: fixture ${fixtureId} seq ${seq} statValue=${data.statToProve.value} (${back * 5}min ago)`,
+          `[smoke] provable update: fixture ${fid} seq ${seq} statValue=${data.statToProve.value}`,
         );
         return data;
       }
     }
   }
-  throw new Error("no provable score update found in lookback window");
+  return null;
+}
+
+async function waitForProofAfter(
+  api: ReturnType<typeof apiClient>,
+  minTsMs: number,
+  fixtureId: number,
+  timeoutMs = 15 * 60_000,
+) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const proof = await scanForProof(api, minTsMs, fixtureId);
+    if (proof) return proof;
+    console.log("[smoke] no provable update yet, feed may be quiet — retrying in 30s");
+    await new Promise((r) => setTimeout(r, 30_000));
+  }
+  throw new Error("no provable score update appeared inside the resolve window (feed quiet?)");
 }
 
 async function main() {
   const creds = await authenticate(network);
   const api = apiClient(network, creds);
-  const validation = await fetchFreshProof(api);
+  const fixtureId = await pickActiveFixture(api);
 
   const keypair = loadWallet();
   const connection = new Connection(cfg.rpcUrl, "confirmed");
@@ -111,26 +169,22 @@ async function main() {
     program.programId,
   );
 
-  const packetTsMs: number = validation.summary.updateStats.minTimestamp;
-  const packetTsSecs = Math.floor(packetTsMs / 1000);
-  const epochDay = Math.floor(packetTsMs / 86_400_000);
-  const [dailyScoresRoots] = PublicKey.findProgramAddressSync(
-    [Buffer.from("daily_scores_roots"), new BN(epochDay).toArrayLike(Buffer, "le", 2)],
-    ORACLE_PROGRAM,
-  );
+  // Resolve window opens shortly in the FUTURE: buy must land before it
+  // (TradingClosed gate), and the resolving packet must land after it.
+  const resolveAfterSecs = Math.floor(Date.now() / 1000) + RESOLVE_WINDOW_SECS;
 
   // --- 1. create market: "P1 full-game goals > -1" (provably YES, exercises the whole pipe) ---
   const sigCreate = await program.methods
     .createMarket({
       marketId,
-      fixtureId: new BN(validation.summary.fixtureId),
+      fixtureId: new BN(fixtureId),
       statKeyA: 1,
       statKeyB: null,
       op: null,
       comparison: { greaterThan: {} },
       threshold: -1,
       seedLiquidity: new BN(100_000_000),
-      resolveAfterTs: new BN(packetTsSecs - 60),
+      resolveAfterTs: new BN(resolveAfterSecs),
       finalityDelaySecs: 60,
       voidAfterTs: new BN(Math.floor(Date.now() / 1000) + 86_400),
     })
@@ -161,7 +215,22 @@ async function main() {
     .rpc();
   console.log("[smoke] buy YES 10.0:", sigBuy);
 
-  // --- 3. resolve via real oracle CPI ---
+  // --- 3. wait for a provable packet inside the resolve window, then the
+  // finality delay, then resolve via real oracle CPI ---
+  const validation = await waitForProofAfter(api, resolveAfterSecs * 1000, fixtureId);
+  const packetTsMs: number = validation.summary.updateStats.minTimestamp;
+  const packetTsSecs = Math.floor(packetTsMs / 1000);
+  const epochDay = Math.floor(packetTsMs / 86_400_000);
+  const [dailyScoresRoots] = PublicKey.findProgramAddressSync(
+    [Buffer.from("daily_scores_roots"), new BN(epochDay).toArrayLike(Buffer, "le", 2)],
+    ORACLE_PROGRAM,
+  );
+  const finalityReadyMs = (packetTsSecs + 60 + 5) * 1000;
+  if (Date.now() < finalityReadyMs) {
+    console.log(`[smoke] waiting ${Math.ceil((finalityReadyMs - Date.now()) / 1000)}s for finality delay`);
+    await new Promise((r) => setTimeout(r, finalityReadyMs - Date.now()));
+  }
+
   const bundle = {
     ts: new BN(packetTsMs),
     fixtureSummary: {

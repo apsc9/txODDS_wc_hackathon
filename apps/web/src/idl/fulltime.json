@@ -481,22 +481,22 @@
     {
       "code": 6000,
       "name": "MarketNotOpen",
-      "msg": "Market is not open for this action"
+      "msg": "Market not open"
     },
     {
       "code": 6001,
       "name": "MarketNotResolved",
-      "msg": "Market is not resolved yet"
+      "msg": "Not resolved"
     },
     {
       "code": 6002,
       "name": "ZeroAmount",
-      "msg": "Amount must be greater than zero"
+      "msg": "Zero amount"
     },
     {
       "code": 6003,
       "name": "SlippageExceeded",
-      "msg": "Slippage: fewer shares out than min_shares_out"
+      "msg": "Slippage exceeded"
     },
     {
       "code": 6004,
@@ -506,32 +506,32 @@
     {
       "code": 6005,
       "name": "ResolveTooEarly",
-      "msg": "Too early to resolve this market"
+      "msg": "Too early to resolve"
     },
     {
       "code": 6006,
       "name": "StalePacket",
-      "msg": "Proven stat packet predates the market's resolve window"
+      "msg": "Stat packet predates resolve window"
     },
     {
       "code": 6007,
       "name": "FinalityGateOpen",
-      "msg": "Finality gate: packet too recent, VAR window still open"
+      "msg": "Packet inside finality delay"
     },
     {
       "code": 6008,
       "name": "FixtureMismatch",
-      "msg": "Proof fixture does not match this market's fixture"
+      "msg": "Fixture mismatch"
     },
     {
       "code": 6009,
       "name": "StatKeyMismatch",
-      "msg": "Proof stat keys do not match this market's stat keys"
+      "msg": "Stat key mismatch"
     },
     {
       "code": 6010,
       "name": "WrongRootsAccount",
-      "msg": "Wrong daily scores roots account for the packet timestamp"
+      "msg": "Wrong daily scores roots account"
     },
     {
       "code": 6011,
@@ -541,7 +541,7 @@
     {
       "code": 6012,
       "name": "OracleNoReturn",
-      "msg": "Oracle returned no return data"
+      "msg": "No oracle return data"
     },
     {
       "code": 6013,
@@ -561,12 +561,17 @@
     {
       "code": 6016,
       "name": "NotCreator",
-      "msg": "Only the market creator may do this"
+      "msg": "Not the market creator"
     },
     {
       "code": 6017,
       "name": "InvalidTiming",
       "msg": "Invalid market timing parameters"
+    },
+    {
+      "code": 6018,
+      "name": "TradingClosed",
+      "msg": "Trading closed"
     }
   ],
   "types": [
