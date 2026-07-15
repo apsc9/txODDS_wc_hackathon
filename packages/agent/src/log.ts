@@ -28,11 +28,20 @@ export function appendDecision(filePath: string, rec: DecisionRecord): void {
 
 export function readDecisions(filePath: string): DecisionRecord[] {
   if (!fs.existsSync(filePath)) return [];
-  return fs
+  const out: DecisionRecord[] = [];
+  const lines = fs
     .readFileSync(filePath, "utf8")
     .split("\n")
-    .filter((l) => l.trim().length > 0)
-    .map((l) => JSON.parse(l) as DecisionRecord);
+    .filter((l) => l.trim().length > 0);
+  for (const l of lines) {
+    try {
+      out.push(JSON.parse(l) as DecisionRecord);
+    } catch {
+      const truncated = l.length > 120 ? `${l.slice(0, 120)}...` : l;
+      console.warn(`[log] skipping corrupt decision line: ${truncated}`);
+    }
+  }
+  return out;
 }
 
 // Restart safety: replay the log so per-market/global caps survive process

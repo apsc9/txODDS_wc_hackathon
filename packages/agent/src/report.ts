@@ -6,7 +6,7 @@ import { PublicKey } from "@solana/web3.js";
 import { readDecisions, type DecisionRecord } from "./log.js";
 import { fetchOpenMarkets, createProgram } from "./trader.js";
 import type { AgentMarket } from "./engine.js";
-import { DEFAULT_LOG_PATH, parseArgs } from "./config.js";
+import { parseArgs } from "./config.js";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 

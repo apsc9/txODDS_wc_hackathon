@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -41,6 +41,22 @@ describe("append + read roundtrip", () => {
 
   it("readDecisions on missing file returns []", () => {
     expect(readDecisions(join(tmpdir(), "nope", "missing.jsonl"))).toEqual([]);
+  });
+
+  it("skips a corrupt JSONL line instead of throwing, keeping valid lines in order", () => {
+    writeFileSync(
+      file,
+      '{"ts":1,"fixtureId":2,"marketPda":"MktA","kind":"skip","reason":"no-fair"}\n' +
+        "{bad json\n" +
+        '{"ts":3,"fixtureId":2,"marketPda":"MktB","kind":"skip","reason":"cooldown"}\n'
+    );
+    let recs: DecisionRecord[] = [];
+    expect(() => {
+      recs = readDecisions(file);
+    }).not.toThrow();
+    expect(recs).toHaveLength(2);
+    expect(recs[0].ts).toBe(1);
+    expect(recs[1].ts).toBe(3);
   });
 });
 

@@ -118,6 +118,24 @@ describe("makeTrader tick", () => {
     expect(t2.state.perMarket.get("MktA")?.exposureUnits).toBe(5_000_000n);
   });
 
+  it("dry-run: stamps cooldown so a persistently-mispriced market doesn't spam every tick", async () => {
+    const executeBuy = vi.fn();
+    const c = cfg(false);
+    const t = makeTrader(c, {
+      fetchMarkets: async () => [mkt()],
+      executeBuy,
+      now: () => NOW,
+    });
+    await t.tick();
+    await t.tick();
+    expect(executeBuy).not.toHaveBeenCalled();
+    const recs = readDecisions(c.logPath);
+    const dryRunLines = recs.filter((r) => r.reason === "dry-run");
+    expect(dryRunLines).toHaveLength(1);
+    // dry-run must still not consume budget
+    expect(t.state.globalSpentUnits).toBe(0n);
+  });
+
   it("quiet on small-edge skips (not logged) to keep the log demo-readable", async () => {
     const c = cfg(false);
     const t = makeTrader(c, {

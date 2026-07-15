@@ -2,6 +2,7 @@
 docs/plans/
 
 data/recordings/
+data/agent/
 node_modules/
 target/
 .env*

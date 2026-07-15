@@ -9,7 +9,7 @@ import {
 import fs from "node:fs";
 import { decide, type AgentMarket, type Decision, type MarketRuntime } from "./engine.js";
 import { appendDecision, readDecisions, rebuildExposure, type DecisionRecord } from "./log.js";
-import { IDL_PATH, PROGRAM_ID, RPC_URL, loadAgentWallet, type AgentConfig } from "./config.js";
+import { IDL_PATH, RPC_URL, loadAgentWallet, type AgentConfig } from "./config.js";
 
 export type TradeDecision = Extract<Decision, { kind: "trade" }>;
 
@@ -160,6 +160,11 @@ export function makeTrader(cfg: AgentConfig, deps: Partial<TraderDeps> = {}) {
         console.log(
           `[trader] DRY-RUN would buy ${decision.side} ${decision.amountInUnits} on ${m.pda.slice(0, 8)} (edge ${decision.edgePpm})`
         );
+        // Stamp the cooldown (but not exposure) so a persistently-mispriced
+        // market logs one dry-run line then goes quiet for the cooldown
+        // window instead of spamming every 5s tick.
+        rt.lastTradeMs = nowMs;
+        state.perMarket.set(m.pda, rt);
         continue;
       }
 
