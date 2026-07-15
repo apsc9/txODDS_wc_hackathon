@@ -16,6 +16,8 @@ import * as anchor from "@coral-xyz/anchor";
 import BN from "bn.js";
 import { PublicKey, Connection, ComputeBudgetProgram } from "@solana/web3.js";
 import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { CONFIG } from "./config.js";
 import { authenticate, apiClient, loadWallet } from "./auth.js";
 
@@ -82,10 +84,7 @@ const statPart = (v: any) => ({
   statProof: toProofNodes(v.statProof),
 });
 
-async function main() {
-  const fixtureId = Number(process.argv[2]);
-  if (!Number.isInteger(fixtureId)) throw new Error("usage: resolve-markets.ts <fixtureId>");
-
+export async function runResolvePass(fixtureId: number): Promise<string[]> {
   const creds = await authenticate(network);
   const api = apiClient(network, creds);
   const keypair = loadWallet();
@@ -94,7 +93,7 @@ async function main() {
     commitment: "confirmed",
   });
   const idl = JSON.parse(
-    fs.readFileSync(new URL("../../../target/idl/fulltime.json", import.meta.url), "utf8"),
+    fs.readFileSync(new URL("../../../apps/web/src/idl/fulltime.json", import.meta.url), "utf8"),
   );
   const program = new anchor.Program(idl, provider);
 
@@ -174,9 +173,20 @@ async function main() {
 
   console.log("\n[keeper] summary:");
   for (const r of results) console.log("  " + r);
+  return results;
 }
 
-main().catch((e) => {
-  console.error("[keeper] FAILED:", e.message ?? e);
-  process.exit(1);
-});
+// CLI entry: `npx tsx src/resolve-markets.ts <fixtureId>` — unchanged
+// behavior. Guard keeps the pass from auto-running when packages/agent
+// imports runResolvePass.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const fixtureId = Number(process.argv[2]);
+  if (!Number.isInteger(fixtureId)) {
+    console.error("usage: resolve-markets.ts <fixtureId>");
+    process.exit(1);
+  }
+  runResolvePass(fixtureId).catch((e) => {
+    console.error("[keeper] FAILED:", e.message ?? e);
+    process.exit(1);
+  });
+}
