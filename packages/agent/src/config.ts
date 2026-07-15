@@ -3,9 +3,10 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_CONFIG, type EngineConfig } from "./engine.js";
 
-// Same devnet endpoints packages/ingest/src/config.ts uses; duplicated here
-// (two small constants) rather than importing across packages.
-export const RPC_URL = "https://api.devnet.solana.com";
+// Same devnet endpoint convention as packages/ingest/src/config.ts: an
+// optional DEVNET_RPC env var (keyed RPC, kept in the gitignored .env)
+// overrides the throttled public default. Callers source .env before running.
+export const RPC_URL = process.env.DEVNET_RPC ?? "https://api.devnet.solana.com";
 export const PROGRAM_ID = "2MzYe6Zo4AD2fuszYou7CcnVmo7cdq4WjKi8UERL652L";
 
 export const AGENT_WALLET_PATH = fileURLToPath(
