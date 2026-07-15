@@ -176,17 +176,73 @@ export async function runResolvePass(fixtureId: number): Promise<string[]> {
   return results;
 }
 
-// CLI entry: `npx tsx src/resolve-markets.ts <fixtureId>` — unchanged
-// behavior. Guard keeps the pass from auto-running when packages/agent
-// imports runResolvePass.
+// Void pass: settle unresolved markets past their void deadline. Two cases
+// need it — zero-stat outcomes an inclusion proof can't resolve (see
+// runResolvePass's "zero unprovable" SKIP: a team that scored 0 goals can't
+// be proven by Merkle inclusion) and abandoned/data-outage fixtures. The
+// program's void_market is permissionless and needs no TxLINE proof or auth,
+// only the on-chain now >= void_after_ts check — so escrow is never stuck
+// even if the oracle goes dark. Holders then reclaim cost basis pro-rata via
+// claim() on the Voided market.
+export async function runVoidPass(fixtureId: number): Promise<string[]> {
+  const keypair = loadWallet();
+  const connection = new Connection(cfg.rpcUrl, "confirmed");
+  const provider = new anchor.AnchorProvider(connection, new anchor.Wallet(keypair), {
+    commitment: "confirmed",
+  });
+  const idl = JSON.parse(
+    fs.readFileSync(new URL("../../../apps/web/src/idl/fulltime.json", import.meta.url), "utf8"),
+  );
+  const program = new anchor.Program(idl, provider);
+
+  const all: any[] = (await (program.account as any).market.all()).filter(
+    (m: any) => Number(m.account.fixtureId) === fixtureId,
+  );
+  const open = all.filter((m) => "open" in m.account.status);
+  const now = Math.floor(Date.now() / 1000);
+  console.log(`[void] fixture ${fixtureId}: ${all.length} markets, ${open.length} open, now ${now}`);
+
+  const results: string[] = [];
+  for (const m of open) {
+    const acc = m.account;
+    const pda: PublicKey = m.publicKey;
+    const voidAfter = Number(acc.voidAfterTs);
+    const label = `${pda.toBase58().slice(0, 8)} voidAfterTs=${voidAfter}`;
+    if (now < voidAfter) {
+      results.push(`SKIP  ${label} — void deadline in ${voidAfter - now}s (VoidTooEarly)`);
+      continue;
+    }
+    try {
+      const sig = await program.methods
+        .voidMarket()
+        .accounts({ caller: keypair.publicKey, market: pda })
+        .rpc();
+      const after: any = await (program.account as any).market.fetch(pda);
+      results.push(`OK    ${label} → ${JSON.stringify(after.status)} tx ${sig}`);
+    } catch (e: any) {
+      results.push(`FAIL  ${label} — ${e.message ?? e}`);
+      if (e.logs) console.error(e.logs.slice(-6).join("\n"));
+    }
+  }
+
+  console.log("\n[void] summary:");
+  for (const r of results) console.log("  " + r);
+  return results;
+}
+
+// CLI entry: `npx tsx src/resolve-markets.ts <fixtureId> [--void]` — default
+// runs the resolve pass; --void runs the void pass instead. Guard keeps
+// either pass from auto-running when packages/agent imports the functions.
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const fixtureId = Number(process.argv[2]);
+  const voidMode = process.argv.includes("--void");
   if (!Number.isInteger(fixtureId)) {
-    console.error("usage: resolve-markets.ts <fixtureId>");
+    console.error("usage: resolve-markets.ts <fixtureId> [--void]");
     process.exit(1);
   }
-  runResolvePass(fixtureId).catch((e) => {
-    console.error("[keeper] FAILED:", e.message ?? e);
+  const pass = voidMode ? runVoidPass(fixtureId) : runResolvePass(fixtureId);
+  pass.catch((e) => {
+    console.error(`[${voidMode ? "void" : "keeper"}] FAILED:`, e.message ?? e);
     process.exit(1);
   });
 }
