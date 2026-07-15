@@ -6,7 +6,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import type { Fixture, GoalEvent, LiveScore, MarketDTO, PricePoint } from "@/lib/types";
 import { useFeedUp, useMarkets, useScores } from "@/hooks/use-markets";
 import { usePositions } from "@/hooks/use-positions";
-import { classifyFixtureStatus, fixtureDefaultMarket, formatPooled, shouldShowStaleBadge, sumPooled } from "@/lib/match-list";
+import { fixtureDefaultMarket, formatPooled, sumPooled } from "@/lib/match-list";
 import { canNeedZeroStat, marketGroup, predicateHuman, predicateMono, type MarketGroup } from "@/lib/statkeys";
 import { ppmToCents } from "@/lib/fpmm";
 import { Scorebug } from "@/components/scorebug";
@@ -30,7 +30,6 @@ type MarketRowProps = {
   onSelect: (m: MarketDTO, side?: "YES" | "NO") => void;
   t1?: string;
   t2?: string;
-  stale?: boolean;
 };
 
 const SETTLED_LABEL: Record<string, string> = {
@@ -39,7 +38,7 @@ const SETTLED_LABEL: Record<string, string> = {
   Voided: "VOID",
 };
 
-export function MarketRow({ m, selected, onSelect, t1, t2, stale = false }: MarketRowProps) {
+export function MarketRow({ m, selected, onSelect, t1, t2 }: MarketRowProps) {
   const settled = m.status !== "Open";
 
   function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
@@ -103,7 +102,7 @@ export function MarketRow({ m, selected, onSelect, t1, t2, stale = false }: Mark
           </div>
         )}
       </div>
-      <div className={`flex shrink-0 gap-2 ${stale ? "opacity-40 grayscale" : ""}`}>
+      <div className="flex shrink-0 gap-2">
         <button
           type="button"
           onClick={(e) => {
@@ -179,11 +178,6 @@ export function MarketBoard({
   );
 
   const score = scores[fixtureId];
-  // Same suppression Scorebug applies (src/components/scorebug.tsx) — a
-  // fixture that hasn't kicked off shouldn't gray out its YES/NO buttons on
-  // a stale prematch packet.
-  const status = classifyFixtureStatus(initial.fixture.StartTime, score, Date.now());
-  const stale = shouldShowStaleBadge(status, feedUp, score?.recvTs);
   const pooled = sumPooled(markets);
 
   // Selection defaults to THIS fixture's deepest-pool market at mount
@@ -285,7 +279,6 @@ export function MarketBoard({
                 onSelect={handleSelect}
                 t1={initial.fixture.Participant1}
                 t2={initial.fixture.Participant2}
-                stale={stale}
               />
             ))
           )}
