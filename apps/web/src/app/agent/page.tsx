@@ -32,7 +32,14 @@ const SOURCE_LABEL = {
 } as const;
 
 export default async function AgentPage() {
-  ensureStarted();
+  // Fresh clones (no TXLINE_CREDS/TXLINE_API) throw a SetupError here. That's
+  // fine for the live app, but this page also serves a committed sample log
+  // for judges — don't let a missing feed boot block the whole dashboard.
+  try {
+    ensureStarted();
+  } catch (err) {
+    console.error("[agent] feed boot failed:", err);
+  }
 
   const log = readAgentLog();
   const markets = Array.from(hub.marketCache.values());
@@ -59,6 +66,7 @@ export default async function AgentPage() {
   const skips = summarizeSkips(log.records);
 
   const empty = log.source === "none" && trades.length === 0 && rows.length === 0;
+  const syncing = positions !== null && positions.length > 0 && rows.length === 0;
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -72,7 +80,11 @@ export default async function AgentPage() {
             {SOURCE_LABEL[log.source]}
           </span>
         </div>
-        {positions ? (
+        {syncing ? (
+          <p className="mt-4 text-sm text-[var(--t3)]">
+            positions syncing — market data not loaded yet
+          </p>
+        ) : positions ? (
           <p className="mt-4 text-lg">
             <span className="text-[var(--t3)]">TOTAL P&amp;L&nbsp;</span>
             <span

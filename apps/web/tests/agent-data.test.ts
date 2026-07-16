@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { readAgentLog } from "@/server/agent-data";
+import { parseDecisionLog } from "@/lib/agent-report";
 
 const LINE =
   '{"ts":1,"fixtureId":18241006,"marketPda":"A","kind":"trade","tx":"T1","amountInUnits":"5000000"}\n';
@@ -42,5 +43,25 @@ describe("readAgentLog", () => {
     const log = readAgentLog(makeBase({}));
     expect(log.source).toBe("none");
     expect(log.records).toEqual([]);
+  });
+});
+
+describe("committed sample decision log", () => {
+  // Regression pin: protects the real committed file from ever being
+  // truncated or re-copied wrong. No mocking — reads the actual file.
+  it("has the expected record counts", () => {
+    const samplePath = path.resolve(__dirname, "../../../data/agent-sample/decisions.jsonl");
+    const text = fs.readFileSync(samplePath, "utf8");
+    const records = parseDecisionLog(text);
+
+    expect(records).toHaveLength(2146);
+
+    const trades = records.filter((r) => r.kind === "trade" && r.tx);
+    const resolves = records.filter((r) => r.kind === "resolve");
+    const skips = records.filter((r) => r.kind === "skip");
+
+    expect(trades).toHaveLength(34);
+    expect(resolves).toHaveLength(35);
+    expect(skips).toHaveLength(2077);
   });
 });
