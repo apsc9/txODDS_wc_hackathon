@@ -5,6 +5,7 @@ import {
   formatUnits,
   parseDecisionLog,
   ppmToCents,
+  safeUnits,
   summarizeSkips,
   type DecisionRecord,
 } from "@/lib/agent-report";
@@ -158,5 +159,27 @@ describe("formatters", () => {
     expect(ppmToCents(500000)).toBe(50);
     expect(ppmToCents(133730)).toBe(13);
     expect(ppmToCents(866270)).toBe(87);
+  });
+});
+
+describe("safeUnits", () => {
+  it("parses a valid decimal-string base-units value to bigint", () => {
+    expect(safeUnits("5000000")).toBe(5000000n);
+  });
+
+  it("returns null for undefined", () => {
+    expect(safeUnits(undefined)).toBeNull();
+  });
+
+  it("returns null for a non-integer decimal string", () => {
+    expect(safeUnits("12.5")).toBeNull();
+  });
+
+  it("returns null for a non-numeric string", () => {
+    expect(safeUnits("abc")).toBeNull();
+  });
+
+  it("returns null for an empty string", () => {
+    expect(safeUnits("")).toBeNull();
   });
 });

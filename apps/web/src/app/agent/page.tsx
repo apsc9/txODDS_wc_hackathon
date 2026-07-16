@@ -9,12 +9,15 @@ import {
   extractResolveTx,
   formatUnits,
   ppmToCents,
+  safeUnits,
   summarizeSkips,
   type AgentReportRow,
   type DecisionRecord,
 } from "@/lib/agent-report";
 import { predicateHuman } from "@/lib/statkeys";
-import type { MarketDTO, PositionDTO } from "@/lib/types";
+import type { Fixture, MarketDTO, PositionDTO } from "@/lib/types";
+
+const SKIP_LIST_CAP = 200;
 
 // Same reasoning as portfolio/page.tsx: output depends on live in-memory hub
 // state + the on-disk decision log, both of which change between requests.
@@ -43,6 +46,7 @@ export default async function AgentPage() {
 
   const log = readAgentLog();
   const markets = Array.from(hub.marketCache.values());
+  const fixtures = hub.fixtures;
 
   // Chain fetch is best-effort: on RPC failure the decision feed (from the
   // local log) still renders; only the P&L section degrades, with a note.
@@ -112,9 +116,11 @@ export default async function AgentPage() {
       ) : (
         <>
           {positions && rows.length > 0 && (
-            <PositionsTable rows={rows} byPda={byPda} />
+            <PositionsTable rows={rows} byPda={byPda} fixtures={fixtures} />
           )}
-          {trades.length > 0 && <TradeFeed trades={trades} byPda={byPda} />}
+          {trades.length > 0 && (
+            <TradeFeed trades={trades} byPda={byPda} fixtures={fixtures} />
+          )}
           {keeperLines.length > 0 && <KeeperActions lines={keeperLines} />}
           {skips.total > 0 && <Skips skips={skips} records={log.records} />}
         </>
@@ -131,17 +137,25 @@ function sectionTitle(text: string) {
   );
 }
 
-function marketLabel(byPda: Map<string, MarketDTO>, pda: string): string {
+function marketLabel(
+  byPda: Map<string, MarketDTO>,
+  fixtures: Map<number, Fixture>,
+  pda: string
+): string {
   const m = byPda.get(pda);
-  return m ? predicateHuman(m) : shortPda(pda);
+  if (!m) return shortPda(pda);
+  const fx = fixtures.get(m.fixtureId);
+  return predicateHuman(m, fx?.Participant1, fx?.Participant2);
 }
 
 function PositionsTable({
   rows,
   byPda,
+  fixtures,
 }: {
   rows: AgentReportRow[];
   byPda: Map<string, MarketDTO>;
+  fixtures: Map<number, Fixture>;
 }) {
   return (
     <section className="mb-10">
@@ -162,7 +176,7 @@ function PositionsTable({
               <tr key={r.marketPda} className="border-b border-[var(--line)] last:border-b-0">
                 <td className="px-4 py-2 text-[var(--t2)]">
                   <Link href={`/receipt/${r.marketPda}`} className="hover:text-[var(--chalk)]">
-                    {marketLabel(byPda, r.marketPda)}
+                    {marketLabel(byPda, fixtures, r.marketPda)}
                   </Link>
                 </td>
                 <td className="px-4 py-2 text-[var(--t3)]">{r.status}</td>
@@ -188,44 +202,49 @@ function PositionsTable({
 function TradeFeed({
   trades,
   byPda,
+  fixtures,
 }: {
   trades: DecisionRecord[];
   byPda: Map<string, MarketDTO>;
+  fixtures: Map<number, Fixture>;
 }) {
   return (
     <section className="mb-10">
       {sectionTitle(`TRADES (${trades.length})`)}
       <ul className="border border-[var(--line)]">
-        {trades.map((t) => (
-          <li
-            key={t.tx}
-            className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-[var(--line)] px-4 py-2 text-sm last:border-b-0"
-          >
-            <span
-              className={`w-8 font-bold ${t.side === "YES" ? "text-emerald-400" : "text-red-400"}`}
+        {trades.map((t) => {
+          const amt = safeUnits(t.amountInUnits);
+          return (
+            <li
+              key={t.tx}
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-[var(--line)] px-4 py-2 text-sm last:border-b-0"
             >
-              {t.side}
-            </span>
-            <span className="text-[var(--t2)]">{marketLabel(byPda, t.marketPda)}</span>
-            {t.fairPpm != null && t.poolPpm != null && (
-              <span className="text-[var(--t3)]">
-                fair {ppmToCents(t.fairPpm)}¢ vs pool {ppmToCents(t.poolPpm)}¢
-                {t.edgePpm != null && ` · edge ${ppmToCents(t.edgePpm)}¢`}
+              <span
+                className={`w-8 font-bold ${t.side === "YES" ? "text-emerald-400" : "text-red-400"}`}
+              >
+                {t.side}
               </span>
-            )}
-            {t.amountInUnits && (
-              <span className="text-[var(--t3)]">{formatUnits(BigInt(t.amountInUnits))} in</span>
-            )}
-            <a
-              href={explorerTx(t.tx!)}
-              target="_blank"
-              rel="noreferrer"
-              className="ml-auto font-mono text-xs text-[var(--gold)] hover:underline"
-            >
-              {shortPda(t.tx!)} ↗
-            </a>
-          </li>
-        ))}
+              <span className="text-[var(--t2)]">{marketLabel(byPda, fixtures, t.marketPda)}</span>
+              {t.fairPpm != null && t.poolPpm != null && (
+                <span className="text-[var(--t3)]">
+                  fair {ppmToCents(t.fairPpm)}¢ vs pool {ppmToCents(t.poolPpm)}¢
+                  {t.edgePpm != null && ` · edge ${ppmToCents(t.edgePpm)}¢`}
+                </span>
+              )}
+              {amt !== null && (
+                <span className="text-[var(--t3)]">{formatUnits(amt)} in</span>
+              )}
+              <a
+                href={explorerTx(t.tx!)}
+                target="_blank"
+                rel="noreferrer"
+                className="ml-auto font-mono text-xs text-[var(--gold)] hover:underline"
+              >
+                {shortPda(t.tx!)} ↗
+              </a>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -271,7 +290,14 @@ function Skips({
   records: DecisionRecord[];
 }) {
   const breakdown = skips.byReason.map(([r, n]) => `${n} ${r}`).join(", ");
-  const lines = records.filter((r) => r.kind === "skip").sort((a, b) => b.ts - a.ts);
+  // Summary (total + breakdown) is computed above from ALL skip records; the
+  // list itself is sliced to the newest SKIP_LIST_CAP rows so a long-running
+  // agent (thousands of skips) doesn't ship a multi-hundred-KB HTML payload
+  // on this force-dynamic page — the remainder is just a count, not dropped
+  // data (nothing else on the page reads the full list).
+  const allLines = records.filter((r) => r.kind === "skip").sort((a, b) => b.ts - a.ts);
+  const lines = allLines.slice(0, SKIP_LIST_CAP);
+  const hiddenCount = allLines.length - lines.length;
   return (
     <section className="mb-10">
       <details className="border border-[var(--line)]">
@@ -288,6 +314,11 @@ function Skips({
               {r.edgePpm != null && ` edge ${ppmToCents(r.edgePpm)}¢`}
             </li>
           ))}
+          {hiddenCount > 0 && (
+            <li className="px-4 py-1 font-mono text-xs text-[var(--t3)] italic last:border-b-0">
+              +{hiddenCount.toLocaleString()} more not shown
+            </li>
+          )}
         </ul>
       </details>
     </section>

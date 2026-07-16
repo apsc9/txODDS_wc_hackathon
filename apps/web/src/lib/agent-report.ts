@@ -117,3 +117,10 @@ export function formatUnits(u: bigint): string {
 export function ppmToCents(ppm: number): number {
   return Math.round(ppm / 10_000);
 }
+
+// Log fields cross a trust boundary (hand-edited or corrupt logs must not
+// 500 the page): parse decimal-string base units defensively.
+export function safeUnits(s: string | undefined): bigint | null {
+  if (s === undefined || !/^\d+$/.test(s)) return null;
+  return BigInt(s);
+}
