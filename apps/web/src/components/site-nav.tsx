@@ -27,6 +27,12 @@ export function SiteNav() {
           >
             Portfolio
           </Link>
+          <Link
+            href="/agent"
+            className="text-[var(--t3)] hover:text-[var(--t2)] transition-colors"
+          >
+            Agent
+          </Link>
         </div>
 
         <div className="flex-1" />
