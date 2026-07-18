@@ -15,6 +15,7 @@ import {
   type DecisionRecord,
 } from "@/lib/agent-report";
 import { predicateHuman } from "@/lib/statkeys";
+import { fixtureTeams } from "@/lib/known-fixtures";
 import type { Fixture, MarketDTO, PositionDTO } from "@/lib/types";
 
 const SKIP_LIST_CAP = 200;
@@ -144,8 +145,8 @@ function marketLabel(
 ): string {
   const m = byPda.get(pda);
   if (!m) return shortPda(pda);
-  const fx = fixtures.get(m.fixtureId);
-  return predicateHuman(m, fx?.Participant1, fx?.Participant2);
+  const { t1, t2 } = fixtureTeams(fixtures, m.fixtureId);
+  return predicateHuman(m, t1, t2);
 }
 
 function PositionsTable({

@@ -5,6 +5,7 @@ import { PublicKey } from "@solana/web3.js";
 
 import idl from "../idl/fulltime.json";
 import { predicateHuman, predicateMono } from "../lib/statkeys";
+import { fixtureTeams } from "../lib/known-fixtures";
 import type { MarketDTO } from "../lib/types";
 import { getProgram, toMarketDTO } from "./chain";
 import { hub } from "./feedhub";
@@ -158,13 +159,14 @@ export async function buildReceipt(marketPda: string): Promise<ReceiptDTO> {
   const account = await (program.account as any).market.fetch(pubkey);
   const dto = toMarketDTO(marketPda, account);
 
-  // Team names are a nice-to-have for predicateHuman (e.g. "Spain to win"
-  // instead of "Home to win") — best-effort only, since a resolved market's
-  // fixture may have long since rolled off the live hub cache.
-  const fixture = hub.fixtures.get(dto.fixtureId);
+  // Team names for predicateHuman (e.g. "Spain to win" instead of "Home to
+  // win") — live hub entry first, then the static known-fixtures fallback,
+  // since a resolved market's fixture has usually rolled off the live hub
+  // cache by the time its receipt is viewed.
+  const { t1, t2 } = fixtureTeams(hub.fixtures, dto.fixtureId);
   const predicate = {
     mono: predicateMono(dto),
-    human: predicateHuman(dto, fixture?.Participant1, fixture?.Participant2),
+    human: predicateHuman(dto, t1, t2),
   };
 
   const voided = dto.status === "Voided";
