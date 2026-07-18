@@ -2,19 +2,28 @@
  * Replay server: re-emits recorded JSONL packets as a local SSE endpoint so the
  * agent/UI can be developed and demoed without a live match.
  *
- *   GET /api/odds/stream    – replayed odds events
- *   GET /api/scores/stream  – replayed scores events
+ *   GET /api/odds/stream        – replayed odds events
+ *   GET /api/scores/stream      – replayed scores events
+ *   GET /api/fixtures/snapshot  – recorded fixtures snapshot (needs --fixtures)
  *
- * Usage: npx tsx src/replay.ts <file.jsonl> [--speed 10] [--port 8787]
+ * Usage: npx tsx src/replay.ts <file.jsonl> [--speed 10] [--port 8787] [--fixtures <snapshot.json>]
  * Speed N compresses recorded inter-event gaps by N×; --speed 0 = flat 50ms.
+ * --fixtures serves a recorder-saved `*-fixtures-*.json` so the web app's
+ * fixtures load (and therefore its fixture pages) work in replay mode too.
  */
 import fs from "node:fs";
 import http from "node:http";
 
 const args = process.argv.slice(2);
-const file = args.find((a) => !a.startsWith("--"));
+// Flags that consume the next arg as their value — their values must not be
+// mistaken for the positional jsonl path (a bare `--fixtures foo.json` value
+// doesn't start with `--`).
+const VALUE_FLAGS = new Set(["--speed", "--port", "--fixtures"]);
+const file = args.find((a, i) => !a.startsWith("--") && !VALUE_FLAGS.has(args[i - 1] ?? ""));
 if (!file) {
-  console.error("usage: tsx src/replay.ts <file.jsonl> [--speed 10] [--port 8787]");
+  console.error(
+    "usage: tsx src/replay.ts <file.jsonl> [--speed 10] [--port 8787] [--fixtures <snapshot.json>]",
+  );
   process.exit(1);
 }
 const flag = (name: string, dflt: number) => {
@@ -23,6 +32,11 @@ const flag = (name: string, dflt: number) => {
 };
 const speed = flag("speed", 10);
 const port = flag("port", 8787);
+const fixturesIdx = args.indexOf("--fixtures");
+const fixturesFile = fixturesIdx >= 0 ? args[fixturesIdx + 1] : undefined;
+// Read once at startup so a bad path fails loudly here, not per-request.
+const fixturesJson = fixturesFile ? fs.readFileSync(fixturesFile, "utf8") : undefined;
+if (fixturesFile) console.log(`[replay] serving fixtures snapshot from ${fixturesFile}`);
 
 type Packet = { recvTs: number; stream: string; event: string | null; id: string | null; data: string };
 const packets: Packet[] = fs
@@ -33,9 +47,21 @@ const packets: Packet[] = fs
 console.log(`[replay] loaded ${packets.length} packets from ${file}`);
 
 const server = http.createServer((req, res) => {
+  if (req.url?.startsWith("/api/fixtures/snapshot")) {
+    if (!fixturesJson) {
+      res.writeHead(404).end("no fixtures snapshot; restart replay with --fixtures <snapshot.json>");
+      return;
+    }
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+    });
+    res.end(fixturesJson);
+    return;
+  }
   const m = req.url?.match(/^\/api\/(odds|scores)\/stream/);
   if (!m) {
-    res.writeHead(404).end("not found; use /api/odds/stream or /api/scores/stream");
+    res.writeHead(404).end("not found; use /api/odds/stream, /api/scores/stream or /api/fixtures/snapshot");
     return;
   }
   const stream = m[1];
