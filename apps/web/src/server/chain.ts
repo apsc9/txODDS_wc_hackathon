@@ -15,11 +15,16 @@ import { hub } from "./feedhub";
 
 const POLL_INTERVAL_MS = 2000;
 
-// Matches apps/web/.env.local.example — falls back to the public devnet RPC
-// so local dev works without an .env.local. The IDL's own `address` field
-// (not an env var) is the source of truth for the program id, per Anchor
-// 0.30+'s `new Program(idl, provider)` convention (see smoke-devnet.ts).
-const RPC_URL = process.env.NEXT_PUBLIC_RPC ?? "https://api.devnet.solana.com";
+// Server-only RPC for the 2s poller. Prefers DEVNET_RPC — a non-public var
+// (same one packages/ingest and packages/agent read) that holds the keyed
+// devnet endpoint and never ships to the browser, so a rate-limit-beating
+// key stays server-side. Falls back to NEXT_PUBLIC_RPC (the browser's own
+// endpoint, safe to share) and then the public devnet RPC so local dev works
+// without any .env. The IDL's own `address` field (not an env var) is the
+// source of truth for the program id, per Anchor 0.30+'s
+// `new Program(idl, provider)` convention (see smoke-devnet.ts).
+const RPC_URL =
+  process.env.DEVNET_RPC ?? process.env.NEXT_PUBLIC_RPC ?? "https://api.devnet.solana.com";
 
 declare global {
   // eslint-disable-next-line no-var

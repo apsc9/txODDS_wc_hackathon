@@ -1,0 +1,46 @@
+# Render Blueprint — FullTime web MVP (persistent Node service).
+# The app runs a long-lived TxLINE SSE hub + 2s chain poller in-process, so it
+# needs a persistent web service (not serverless). `npm start` = `next start`,
+# which binds to $PORT (Render-provided).
+#
+# Secrets are NOT in this file. One value is set in the Render dashboard
+# (Environment tab, marked sync:false below) and one Secret File is uploaded:
+#   - DEVNET_RPC            : keyed devnet RPC (server-only, NOT NEXT_PUBLIC_ -> never sent to browser)
+#   - Secret File           : txline-creds.devnet.json  ->  /etc/secrets/txline-creds.devnet.json
+#
+# NEXT_PUBLIC_RPC is left at the public devnet endpoint below: it ships to the
+# browser (wallet tx only, low volume), so it must never carry the keyed URL.
+# The heavy 2s poller reads DEVNET_RPC server-side instead (see chain.ts).
+#
+# Free plan sleeps after 15m idle. Keep it warm for free by pinging the URL
+# every ~10m from an external cron (cron-job.org / UptimeRobot) — see runbook.
+services:
+  - type: web
+    name: fulltime-web
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: apps/web
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /agent  # creds-free route — always 200 even before TXLINE creds resolve
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_RPC
+        value: https://api.devnet.solana.com  # public endpoint — browser-facing, no key
+      - key: DEVNET_RPC
+        sync: false          # set in dashboard — keyed devnet RPC, server-only (never exposed)
+      - key: NEXT_PUBLIC_FULLTIME_PROGRAM
+        value: 2MzYe6Zo4AD2fuszYou7CcnVmo7cdq4WjKi8UERL652L
+      - key: NEXT_PUBLIC_EXPLORER
+        value: https://explorer.solana.com
+      - key: NEXT_PUBLIC_ORACLE_PROGRAM
+        value: 6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J
+      - key: NEXT_PUBLIC_STAKE_MINT
+        value: CGtLEEkqG2K11KzVCiZpqG3F3FQKxG89PyauVhxmv9Hv
+      - key: TXLINE_API
+        value: https://txline-dev.txodds.com
+      - key: TXLINE_CREDS
+        value: /etc/secrets/txline-creds.devnet.json  # path only; file uploaded as a Render Secret File
