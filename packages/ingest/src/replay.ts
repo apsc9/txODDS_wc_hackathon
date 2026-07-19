@@ -6,10 +6,14 @@
  *   GET /api/scores/stream      – replayed scores events
  *   GET /api/fixtures/snapshot  – recorded fixtures snapshot (needs --fixtures)
  *
- * Usage: npx tsx src/replay.ts <file.jsonl> [--speed 10] [--port 8787] [--fixtures <snapshot.json>]
+ * Usage: npx tsx src/replay.ts <file.jsonl> [--speed 10] [--port 8787] [--fixtures <snapshot.json>] [--live-now]
  * Speed N compresses recorded inter-event gaps by N×; --speed 0 = flat 50ms.
  * --fixtures serves a recorder-saved `*-fixtures-*.json` so the web app's
  * fixtures load (and therefore its fixture pages) work in replay mode too.
+ * --live-now rewrites StartTime to "just kicked off" in the served snapshot,
+ * but only for fixtures that actually appear in the replayed packets — the
+ * web app's classifyFixtureStatus otherwise sees a past kickoff and labels
+ * the replayed match FT instead of LIVE.
  */
 import fs from "node:fs";
 import http from "node:http";
@@ -34,8 +38,9 @@ const speed = flag("speed", 10);
 const port = flag("port", 8787);
 const fixturesIdx = args.indexOf("--fixtures");
 const fixturesFile = fixturesIdx >= 0 ? args[fixturesIdx + 1] : undefined;
+const liveNow = args.includes("--live-now");
 // Read once at startup so a bad path fails loudly here, not per-request.
-const fixturesJson = fixturesFile ? fs.readFileSync(fixturesFile, "utf8") : undefined;
+let fixturesJson = fixturesFile ? fs.readFileSync(fixturesFile, "utf8") : undefined;
 if (fixturesFile) console.log(`[replay] serving fixtures snapshot from ${fixturesFile}`);
 
 type Packet = { recvTs: number; stream: string; event: string | null; id: string | null; data: string };
@@ -45,6 +50,19 @@ const packets: Packet[] = fs
   .filter(Boolean)
   .map((l) => JSON.parse(l));
 console.log(`[replay] loaded ${packets.length} packets from ${file}`);
+
+if (liveNow && fixturesJson) {
+  const fixtures = JSON.parse(fixturesJson) as Array<{ FixtureId: number; StartTime: number }>;
+  const replayed = fixtures.filter((f) =>
+    packets.some((p) => p.data.includes(`"FixtureId":${f.FixtureId}`)),
+  );
+  const kickoff = Date.now() - 60_000;
+  for (const f of replayed) f.StartTime = kickoff;
+  fixturesJson = JSON.stringify(fixtures);
+  console.log(
+    `[replay] --live-now: StartTime -> now-60s for ${replayed.map((f) => f.FixtureId).join(", ") || "(none matched)"}`,
+  );
+}
 
 const server = http.createServer((req, res) => {
   if (req.url?.startsWith("/api/fixtures/snapshot")) {

@@ -10,3 +10,4 @@ target/
 *.keypair.json
 .keys/
 .superpowers/
+data/*.log

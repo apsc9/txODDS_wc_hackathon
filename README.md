@@ -2,6 +2,10 @@
 
 A settlement-first prediction market for World Cup outcomes, plus an autonomous agent that keeps it liquid and honest. Built on Solana devnet with the [TxLINE](https://txline.txodds.com) World Cup feed as the oracle.
 
+**Live demo:** [fulltime-web.onrender.com](https://fulltime-web.onrender.com/) · [agent dashboard](https://fulltime-web.onrender.com/agent) · [sample Resolution Receipt](https://fulltime-web.onrender.com/receipt/9WnTXAdG5ZniNdFaN3CyxQxVuCPydDzwggotDjuwnnYC)
+
+**Demo videos:** [FullTime — prediction markets & settlement](https://www.loom.com/share/6229755198d14d0d8c18e1be96924bf7) · [Touchline — autonomous agent](https://www.loom.com/share/f68e59088fdc42a281940448dee9004e)
+
 Two hackathon tracks, one codebase:
 
 - **FullTime (Track 1)** — a prediction market where any match outcome (1X2, total goals, parametric props like "combined corners > 10") becomes a market with USDC escrowed in a neutral PDA. Resolution is **permissionless**: after full-time, anyone fetches the TxLINE proof and calls `resolve`, which CPIs into TxLINE's `validate_stat` to verify the stat on-chain. No admin key decides an outcome. Every settlement produces a **Resolution Receipt** — the full proof chain (data packet → Merkle proof → on-chain validation tx) shown in the UI.
